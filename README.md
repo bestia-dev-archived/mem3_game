@@ -1,9 +1,10 @@
 Things are changing fast. This is the situation on 2019-05-13. Luciano Bestia  
 Read the `Last project` first:  
-https://github.com/LucianoBestia/mem3  
+https://github.com/LucianoBestia/mem2  
 # mem3_game
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
-It is s time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.
+It is s time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.  
+Each project in the Workspace has its own readme.md. Read them too.  
 ## Clone
 ```
 git clone git@github.com:LucianoBestia/mem3_game.git
