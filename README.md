@@ -37,7 +37,7 @@ If the cards match, they are left face up permanently and the player receives a 
 The player with more points wins.  
 ## Next projects
 vacation  
-## TODO
+## TODO:
 . In mem3 I plan to:
 - think more about references inside structs. I think, the lifetime <'a> is the solution. I have here all structs, that will live until the end of the application.  
 - player can choose more than one content: "images, sounds and text"
