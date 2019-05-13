@@ -1,2 +1,32 @@
+[tasks.post-build]
+script = [
+    "xcopy c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3\\pkg\\*.* c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3_server\\mem3\\pkg /y ",
+    "start chrome http://192.168.1.57:80 ", 
+    "start chrome http://192.168.1.57:80 ", 
+    "cargo run"
+]
+
+
+[tasks.pre-format]
+disabled = true
+
 [tasks.format]
+disabled = true
+
+[tasks.post-format]
+disabled = true
+
+[tasks.format-flow]
+disabled = true
+
+[tasks.pre-test]
+disabled = true
+
+[tasks.test]
+disabled = true
+
+[tasks.post_test]
+disabled = true
+
+[tasks.pre-build]
 disabled = true

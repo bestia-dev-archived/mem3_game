@@ -1,2 +1,31 @@
+
+[tasks.build]
+command = "wasm-pack"
+args = ["build", "--target", "web"]
+
+[tasks.pre-format]
+disabled = true
+
 [tasks.format]
+disabled = true
+
+[tasks.post-format]
+disabled = true
+
+[tasks.format-flow]
+disabled = true
+
+[tasks.pre-test]
+disabled = true
+
+[tasks.test]
+disabled = true
+
+[tasks.post_test]
+disabled = true
+
+[tasks.test_flow]
+disabled = true
+
+[tasks.pre-build]
 disabled = true
