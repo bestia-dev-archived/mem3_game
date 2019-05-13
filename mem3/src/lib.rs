@@ -1,3 +1,4 @@
+//region: App Description for docs
 //! Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio with `WebSocket` communication.
 //! mem3 is a simple game for kids.
 //! Constructing a HTML page with Virtual DOM (vdom) is simple because it is rendered completely every tick (animation frame).
@@ -8,6 +9,7 @@
 //! If a rendering is not scheduled I believe nothing happens.
 //! read Readme.md
 //! read StructModel.md
+//endregion
 
 //region: Clippy
 #![warn(
@@ -33,7 +35,8 @@
     clippy::use_self,
     //Cannot add #[inline] to the start function with #[wasm_bindgen(start)]
     //because then wasm-pack build --target web returns an error: export `run` not found 
-    clippy::missing_inline_in_public_items
+    clippy::missing_inline_in_public_items,
+    clippy::integer_arithmetic,
 )]
 //endregion
 
@@ -156,7 +159,7 @@ enum GameState {
     Asking,
     ///Player2 is asked WantToPlay
     Asked,
-    ///play (the turn is in cardgrid.player_turn)
+    ///play (the turn is in RootRenderingComponent.player_turn)
     Play,
 }
 
@@ -183,17 +186,25 @@ struct Card {
 }
 
 ///Render Component: player score (cacheable?)
+/// I tried different approaches to access the game data
+/// All of them are just crazy. In mem2 I succeeded with Rc<RefCell<>>, but I don't like it.
+/// Here I will do terrible design: I will copy the data from the parent struct.
 struct PlayersAndScores {
-    ///reference in a struct does not define mutable or immutable.
-    /// It is defined only inside the running code.
-    game_data: Option<Box<GameData>>,
+    ///whose turn is now:  player 1 or 2
+    player_turn: usize,
+    ///player1 points
+    player1_points: usize,
+    ///player2 points
+    player2_points: usize,
+    ///What player am I
+    this_machine_player_number: usize,
 }
 
 ///Render Component: The static parts can be cached easily.
 pub struct RulesAndDescription {}
 
 ///Root Render Component: the card grid struct has all the needed data for play logic and rendering
-struct RootRenderingComponent<'a> {
+struct RootRenderingComponent {
     ///game data will be inside of Root, but reference for all other RenderingComponents
     game_data: GameData,
     ///subComponent: score
@@ -283,7 +294,7 @@ pub fn run() -> Result<(), JsValue> {
 }
 //endregion
 
-//Region: Helper functions
+//region: Helper functions
 ///change the newline lines ending into <br> node
 fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
     let mut vec_text_node = Vec::new();
@@ -293,6 +304,11 @@ fn text_with_br_newline<'a>(txt: &'a str, bump: &'a Bump) -> Vec<Node<'a>> {
         vec_text_node.push(br(bump).finish());
     }
     vec_text_node
+}
+/// Get the top-level window's session storage.
+pub fn session_storage() -> web_sys::Storage {
+    let window = web_sys::window().expect("error: web_sys::window");
+    window.session_storage().unwrap_throw().unwrap_throw()
 }
 //endregion
 
@@ -370,30 +386,31 @@ impl GameData {
 }
 //endregion
 
-//region:CardGrid struct is the only persistant data we have in Rust Virtual Dom.dodrio
+//region:RootRenderingComponent struct is the only persistant data we have in Rust Virtual Dom.dodrio
 //in the constructor we initialize that data.
 //Later onclick we change this data.
 //at every animation frame we use only this data to render the virtual Dom.
 //It knows nothing about HTML and Virtual dom.
-impl<'a> RootRenderingComponent<'a> {
-    /// Construct a new `CardGrid` component. Only once at the begining.
+impl RootRenderingComponent {
+    /// Construct a new `RootRenderingComponent` component. Only once at the begining.
     pub fn new(ws: WebSocket, my_ws_client_instance: usize) -> Self {
         let game_data = GameData::new(ws, my_ws_client_instance);
 
         let game_rule_01 = RulesAndDescription {};
         let cached_rules_and_description = Cached::new(game_rule_01);
 
-        let players_and_scores = PlayersAndScores { game_data: None };
+        let players_and_scores = PlayersAndScores {
+            player1_points: 0,
+            player2_points: 0,
+            this_machine_player_number: 0, //unknown until WantToPlay+Accept
+            player_turn: 0,
+        };
 
-        let mut x = RootRenderingComponent {
+        RootRenderingComponent {
             game_data,
             players_and_scores,
             cached_rules_and_description,
-        };
-
-        x.players_and_scores.game_data = &x.game_data;
-
-        x
+        }
     }
     ///The onclick event passed by javascript executes all the logic
     ///and changes only the fields of the Card Grid struct.
@@ -457,9 +474,9 @@ impl<'a> RootRenderingComponent<'a> {
                 {
                     //give points
                     if self.game_data.player_turn == 1 {
-                        self.game_data.player1_points += 1;
+                        self.set_player1_points(self.game_data.player1_points + 1);
                     } else {
-                        self.game_data.player2_points += 1;
+                        self.set_player2_points(self.game_data.player2_points + 1)
                     }
 
                     // the two cards matches. make them permanent FaceUp
@@ -482,11 +499,11 @@ impl<'a> RootRenderingComponent<'a> {
     }
     ///fn on change for both click and we msg.
     fn take_turn(&mut self) {
-        self.game_data.player_turn = if self.game_data.player_turn == 1 {
+        self.set_player_turn(if self.game_data.player_turn == 1 {
             2
         } else {
             1
-        };
+        });
 
         //click on Change button closes first and second card
         let x1 = self.game_data.card_index_of_first_click;
@@ -515,21 +532,38 @@ impl<'a> RootRenderingComponent<'a> {
 
         x.expect("error session_storage().get('Spelling')")
     }
+    //region: change this data in 2 places simultaneously. Awful.
+    //TODO: Because cannot find a way to have a reference to parent struct.
+    ///set
+    fn set_player_turn(&mut self, player_turn: usize) {
+        self.game_data.player_turn = player_turn;
+        self.players_and_scores.player_turn = player_turn;
+    }
+    ///set
+    fn set_player1_points(&mut self, player1_points: usize) {
+        self.game_data.player1_points = player1_points;
+        self.players_and_scores.player1_points = player1_points;
+    }
+    ///set
+    fn set_player2_points(&mut self, player2_points: usize) {
+        self.game_data.player2_points = player2_points;
+        self.players_and_scores.player2_points = player2_points;
+    }
+    ///set
+    fn set_this_machine_player_number(&mut self, this_machine_player_number: usize) {
+        self.game_data.this_machine_player_number = this_machine_player_number;
+        self.players_and_scores.this_machine_player_number = this_machine_player_number;
+    }
+    //endregion
 }
 //endregion
 
-/// Get the top-level window's session storage.
-pub fn session_storage() -> web_sys::Storage {
-    let window = web_sys::window().expect("error: web_sys::window");
-    window.session_storage().unwrap_throw().unwrap_throw()
-}
-
-//region: `Render` trait implementation on CardGrid struct
+//region: `Render` trait implementation on RootRenderingComponent struct
 ///It is called for every Dodrio animation frame to render the vdom.
 ///Probably only when something changes. Here it is a click on the cards.
 ///Not sure about that, but I don't see a reason to make execute it otherwise.
 ///It is the only place where I create HTML elements in Virtual Dom.
-impl<'c> Render for RootRenderingComponent<'c> {
+impl Render for RootRenderingComponent {
     #[inline]
     fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
     where
@@ -541,7 +575,7 @@ impl<'c> Render for RootRenderingComponent<'c> {
         //region: private helper fn for Render()
         //here I use private functions for readability only, to avoid deep code nesting.
         //I don't understand closures enought to use them properly.
-        //These private functions are not in the "impl Render forCardGrid" because of the error
+        //These private functions are not in the "impl Render forRootRenderingComponent" because of the error
         //method `from_card_number_to_img_src` is not a member of trait `Render`
         //there is not possible to write private and public methods in one impl block there are only pub methods.
         //`pub` not permitted there because it's implied
@@ -604,9 +638,9 @@ impl<'c> Render for RootRenderingComponent<'c> {
                         //on click needs a code Closure in Rust. Dodrio and wasm-bindgen
                         //generate the javascript code to call it properly.
                         .on("click", move |root, vdom, event| {
-                            //we need our Struct CardGrid for Rust to write any data.
+                            //we need our Struct RootRenderingComponent for Rust to write any data.
                             //It comes in the parameter root.
-                            //All we can change is inside the struct CardGrid fields.
+                            //All we can change is inside the struct RootRenderingComponent fields.
                             //The method render will later use that for rendering the new html.
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
@@ -781,9 +815,7 @@ bumpalo::format!(in bump, "{}",
             'a: 'bump,
         {
             use dodrio::builder::{h3, text};
-            //this game_data mutable reference is dropped on the end of the function
-            let game_data = &root_rendering_component.game_data;
-            if let GameState::Start = game_data.game_state {
+            if let GameState::Start = root_rendering_component.game_data.game_state {
                 // 1S Ask Player2 to play!
                 console::log_1(&"GameState::Start".into());
                 //return Ask Player2 to play!
@@ -797,16 +829,17 @@ bumpalo::format!(in bump, "{}",
                     )])
                     .on("click", move |root, vdom, _event| {
                         let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
-                        //this game_data mutable reference is dropped on the end of the function
-                        let mut game_data = &mut root_rendering_component.game_data;
                         //region: send WsMessage over websocket
-                        game_data.this_machine_player_number = 1;
-                        game_data.game_state = GameState::Asking;
-                        game_data
+                        root_rendering_component.set_this_machine_player_number(1);
+                        root_rendering_component.game_data.game_state = GameState::Asking;
+                        root_rendering_component
+                            .game_data
                             .ws
                             .send_with_str(
                                 &serde_json::to_string(&WsMessage::WantToPlay {
-                                    ws_client_instance: game_data.my_ws_client_instance,
+                                    ws_client_instance: root_rendering_component
+                                        .game_data
+                                        .my_ws_client_instance,
                                 })
                                 .expect("error sending test"),
                             )
@@ -815,10 +848,10 @@ bumpalo::format!(in bump, "{}",
                         vdom.schedule_render();
                     })
                     .finish()
-            } else if let GameState::Asking = game_data.game_state {
+            } else if let GameState::Asking = root_rendering_component.game_data.game_state {
                 //return wait for the other player
                 div_wait_for_other_player(bump)
-            } else if let GameState::Asked = game_data.game_state {
+            } else if let GameState::Asked = root_rendering_component.game_data.game_state {
                 // 2S Click here to Accept play!
                 console::log_1(&"GameState::Asked".into());
                 //return Click here to Accept play
@@ -831,22 +864,28 @@ bumpalo::format!(in bump, "{}",
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
-                        let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
-                        //this game_data mutable reference is dropped on the end of the function
-                        let mut game_data = &mut root_rendering_component.game_data;
+                        let mut root_rendering_component =
+                            root.unwrap_mut::<RootRenderingComponent>();
                         //region: send WsMessage over websocket
-                        game_data.this_machine_player_number = 2;
-                        game_data.player_turn = 1;
-                        game_data.game_state = GameState::Play;
+                        root_rendering_component
+                            .game_data
+                            .this_machine_player_number = 2;
+                        root_rendering_component.set_player_turn(1);
+                        root_rendering_component.game_data.game_state = GameState::Play;
 
-                        game_data
+                        root_rendering_component
+                            .game_data
                             .ws
                             .send_with_str(
                                 &serde_json::to_string(&WsMessage::AcceptPlay {
-                                    ws_client_instance: game_data.my_ws_client_instance,
+                                    ws_client_instance: root_rendering_component
+                                        .game_data
+                                        .my_ws_client_instance,
                                     //send the vector of cards because both players need cards in the same location.
-                                    card_grid_data: serde_json::to_string(&game_data.vec_cards)
-                                        .expect("error serde_json"),
+                                    card_grid_data: serde_json::to_string(
+                                        &root_rendering_component.game_data.vec_cards,
+                                    )
+                                    .expect("error serde_json"),
                                 })
                                 .expect("error sending test"),
                             )
@@ -855,8 +894,16 @@ bumpalo::format!(in bump, "{}",
                         vdom.schedule_render();
                     })
                     .finish()
-            } else if game_data.count_click_inside_one_turn >= 2 {
-                if game_data.this_machine_player_number == game_data.player_turn {
+            } else if root_rendering_component
+                .game_data
+                .count_click_inside_one_turn
+                >= 2
+            {
+                if root_rendering_component
+                    .game_data
+                    .this_machine_player_number
+                    == root_rendering_component.game_data.player_turn
+                {
                     //return wait for the other player
                     div_wait_for_other_player(bump)
                 } else {
@@ -891,8 +938,16 @@ bumpalo::format!(in bump, "{}",
                         })
                         .finish()
                 }
-            } else if game_data.count_click_inside_one_turn < 2 {
-                if game_data.this_machine_player_number == game_data.player_turn {
+            } else if root_rendering_component
+                .game_data
+                .count_click_inside_one_turn
+                < 2
+            {
+                if root_rendering_component
+                    .game_data
+                    .this_machine_player_number
+                    == root_rendering_component.game_data.player_turn
+                {
                     h3(bump)
                         .attr("id", "ws_elem")
                         .attr("style", "color:orange;")
@@ -910,7 +965,7 @@ bumpalo::format!(in bump, "{}",
                 h3(bump)
                     .attr("id", "ws_elem")
                     .children([text(
-                        bumpalo::format!(in bump, "gamestate: {} player {}", game_data.game_state.as_ref(),game_data.this_machine_player_number)
+                        bumpalo::format!(in bump, "gamestate: {} player {}", root_rendering_component.game_data.game_state.as_ref(),root_rendering_component.game_data.this_machine_player_number)
                             .into_bump_str(),
                     )])
                     .finish()
@@ -929,7 +984,7 @@ bumpalo::format!(in bump, "{}",
         //endregion
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
-        //this game_data mutable reference is dropped on the end of the function
+
         let game_data = &self.game_data;
 
         div(bump)
@@ -992,7 +1047,7 @@ impl Render for RulesAndDescription {
     }
 }
 
-impl<'c> Render for PlayersAndScores<'c> {
+impl Render for PlayersAndScores {
     ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
     ///It is ivalidate, when the points change.
     ///html element to with scores for 2 players
@@ -1000,8 +1055,6 @@ impl<'c> Render for PlayersAndScores<'c> {
     where
         'a: 'bump,
     {
-        //this game_data mutable reference is dropped on the end of the function
-        let game_data = self.game_data.unwrap();
         //return
         div(bump)
             .attr("class", "grid_container_players")
@@ -1016,13 +1069,13 @@ impl<'c> Render for PlayersAndScores<'c> {
                     .attr(
                         "style",
                         bumpalo::format!(in bump,"text-align: left;color:{};text-decoration:{}",
-                            if game_data.player_turn==1 {"green"} else {"red"},
-                            if game_data.this_machine_player_number==1 {"underline"} else {"none"}
+                            if self.player_turn==1 {"green"} else {"red"},
+                            if self.this_machine_player_number==1 {"underline"} else {"none"}
                         )
                         .into_bump_str(),
                     )
                     .children([text(
-                        bumpalo::format!(in bump, "player1: {}",game_data.player1_points)
+                        bumpalo::format!(in bump, "player1: {}",self.player1_points)
                             .into_bump_str(),
                     )])
                     .finish(),
@@ -1036,13 +1089,13 @@ impl<'c> Render for PlayersAndScores<'c> {
                     .attr(
                         "style",
                         bumpalo::format!(in bump,"text-align: right;color:{};text-decoration:{}",
-                            if game_data.player_turn==2 {"green"} else {"red"},
-                            if game_data.this_machine_player_number==2 {"underline"} else {"none"}
+                            if self.player_turn==2 {"green"} else {"red"},
+                            if self.this_machine_player_number==2 {"underline"} else {"none"}
                         )
                         .into_bump_str(),
                     )
                     .children([text(
-                        bumpalo::format!(in bump, "player2: {}",game_data.player2_points)
+                        bumpalo::format!(in bump, "player2: {}",self.player2_points)
                             .into_bump_str(),
                     )])
                     .finish(),
@@ -1097,9 +1150,9 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     //It sends a WsMessage with the vector of cards. Both will need the same vector.
     //The vector of cards is copied.
     //Player1 click a card. It opens locally and sends WsMessage with index of the card.
-    //Machine2 receives the WsMessage and runs the same code as the player would click. The cardgrid is blocked.
+    //Machine2 receives the WsMessage and runs the same code as the player would click. The RootRenderingComponent is blocked.
     //The method with_component() needs a future (promise) It will be executed on the next vdom tick.
-    //This is the only way I found to write to CardGrid fields.
+    //This is the only way I found to write to RootRenderingComponent fields.
     let weak = vdom.weak();
     let msg_recv_handler = Box::new(move |msg: JsValue| {
         let data: JsValue =
@@ -1123,7 +1176,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable reference is dropped on the end of the function
+                            //this self mutable reference is dropped on the end of the function
                             let mut game_data = &mut root_rendering_component.game_data;
                             if let GameState::Start = game_data.game_state {
                                 console::log_1(&"rcv wanttoplay".into());
@@ -1147,15 +1200,14 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                             console::log_1(&"rcv AcceptPlay".into());
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable reference is dropped on the end of the function
-                            let mut game_data = &mut root_rendering_component.game_data;
 
-                            game_data.player_turn = 1;
-                            game_data.game_state = GameState::Play;
+                            root_rendering_component.set_player_turn(1);
+                            root_rendering_component.game_data.game_state = GameState::Play;
                             let v: Vec<Card> = serde_json::from_str(card_grid_data.as_str())
                                 .expect("Field 'text' is not Vec<Card>");
-                            game_data.vec_cards = v;
-                            game_data.other_ws_client_instance = ws_client_instance;
+                            root_rendering_component.game_data.vec_cards = v;
+                            root_rendering_component.game_data.other_ws_client_instance =
+                                ws_client_instance;
                             v2.schedule_render();
                             //}
                         }

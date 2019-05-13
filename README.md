@@ -49,7 +49,20 @@ vacation
 
 ## Changelog
 - Only one WorkSpace for the frontend and end backend projects. To see how it works.  
-- use cargo make (build scripts) to copy the pkg of frontend to the backend folder  
+- use cargo make (build scripts) to copy the pkg of frontend to the backend folder - I cannot find an easy way to make a simple static struct tree and access the data of the parent struct. I tried a lot of things:
+1. In mem2 I successfully used Rc<RefCell<>>, but it is not a compile time approach.  
+2. Inside a struct tree, Rust cannot have a normal reference to another field/struct. Because all objects are movable, that reference will be bad after the struct moves.
+3. Lifetimes are a mess. I have Dodrio here, that lives longer then the main() function. So I cannot have any struct, that lives long enough. Except the one struct, that I move into Dodrio. It can be only one struct, because it is a Dodrio function and the parameters are fixed.  
+4. Box, UnsafeCell, ... acrobatics
+5. A single arena for all the data?? All have the same lifetime.
+6. There is a Pin struct for making unmovable data.
+7. There are strange crates for terrible workarounds:  
+https://github.com/diwic/refstruct-rs  
+https://github.com/Kimundi/owning-ref-rs  
+https://github.com/jpernst/rental  
+- For every small change there is a mountain of refactoring to do. Lifetimes are the worst.  
+
+
 ## References
 ### mem3  
 Rust  
