@@ -1,15 +1,30 @@
-Things are changing fast. This is the situation on 2019-05-11. Luciano Bestia  
+Things are changing fast. This is the situation on 2019-05-13. Luciano Bestia  
 Read the `Last project` first:  
-https://github.com/LucianoBestia/mem2  
+https://github.com/LucianoBestia/mem3  
 # mem3_game
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
+It is s time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.
+# Build
+Install cargo-make:  
+`cargo install --force cargo-make`  
+  
+`cargo make my-flow`  
+
+
+
 # TODO
-Is time to let mem2 as it is. In mem3 I plan to:
-- have the frontend end backend projects in one Rust Workspace. To see how it works.  
-- think more about references inside structs. Maybe, the lifetime <'static> is the solution. I have here structs, that will live untill the end of the application. Maybe even a bump allocator for my structs - to have exactly the same lifetime.  
-- more than one content: "images, sounds and text"
+. In mem3 I plan to:
+- Only one WorkSpace for the frontend and end backend projects. To see how it works.  
+- think more about references inside structs. I think, the lifetime <'a> is the solution. I have here all structs, that will live until the end of the application.  
+- player can choose more than one content: "images, sounds and text"
 - fetch text.json from Rust
-- better documentation. Do I really have to write very long doc-comments in the code ?
-- use cache for dom sections e.g. players_and_scores
-- Restart button and re-ask player.
+- better documentation. Do I really have to write very long doc-comments in the code ? It looks terrible. But it is useful when reading the code. Maybe I can hide it in a region block. Dodrio has beautiful docs. How did he do it?  
+- use cache for Dom sections e.g. players_and_scores
+- Restart button and re-ask player.  
+- use cargo make (build scripts) to copy the pkg of frontend to the backend folder - cargo-make ??  
+- the server could broadcast only the first "Want to play?". All the rest should be a private conversation between 2 players. Maybe add a simple chat for the fun of it? 
+
+
+
+
 

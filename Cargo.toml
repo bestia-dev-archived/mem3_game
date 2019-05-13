@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "mem3",
+    "mem3_server",
+]
