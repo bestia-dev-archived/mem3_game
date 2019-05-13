@@ -1,38 +1,11 @@
-Things are changing fast. This is the situation on 2019-05-10. Luciano Bestia  
+Things are changing fast. This is the situation on 2019-05-13. Luciano Bestia  
 Read the `Last project` first:  
 https://github.com/LucianoBestia/mem1  
 # mem3
-Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration.  
+Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - third iteration.  
 This is a simple memory game for kids. The images are funny cartoon characters from the alphabet.  
-The cards grid is only 4x4.  
-For fun I added  
-- the sounds of Morse alphabet codes and  
-- the International Aviation spelling.  
-  
-You can play the game here:  
-https://bestiavm02.southeastasia.cloudapp.azure.com  
-Warning: Sometimes the server is down, because I use it for development. But if you contact me, I will be happy to start it. I can do it basically anywhere. On my android phone I have the Azure app and the ConnectBot app as SSH console with my private SSH key.  
-
 ## Build
-Clone and build
-```
-git clone git@github.com:LucianoBestia/mem3.git
-cd mem3
-wasm-pack build --target web  
-```
-You cannot use this project without a html/WebSocket server. Read the next chapter.  
-## Serve
-The mem3_server project and instructions is here:  
-https://github.com/LucianoBestia/mem3_server  
-For development, you have to run the game from the mem3_server. So you will have both the server and client side working.  
-Copy the `mem3/pkg/` folder to `mem3_server/mem3/pkg`. This is the compiled wasm code.  
-After building and running the server,  
-`cd mem3_server
-cargo run`  
-it will print the External IP Address e.g. 192.168.0.22  
-Open your browser and use that address.  
-The game is made for exactly 2 players. Open 2 browser windows with the same address.  
-Preferably use 2 smartphones on the same WiFi network.  
+Look at the workspace readme.md.  
 # Memory game rules
 This game is for exactly 2 players.  
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
@@ -47,20 +20,10 @@ If the cards match, they are left face up permanently and the player receives a 
 The player with more points wins.  
 
 # Upgrades, refactoring and enhancement over mem1
-I decided that the project "mem1" is good as it is.  
-It is a tutorial how to create a simple wasm with Rust Wasm/WebAssembly with Dodrio Virtual Dom and turn it into a webpage, electron and PhoneGap app. Very multiplatform !  
-Adding anything more would make it difficult to understand and to follow the code.  
-That is why I started a second project "mem3". I continue on the foundation of mem1 and will add stuff.  
-Hopefully more advanced and interesting.  
-Read the interesting StructModel.md to understand the basics of the new structs and data. I tried to use `dynamic borrow checker`. Then I realized, it was not a smart move. It was not how Rust should work. I will try to rethink it in the next iteration using `lifetimes` and `static borrow checker`.   
-I built a 2 player mode over WebSockets. With lot of refactoring and enhancements to make the code more Rust idiomatic. I added image transitions and sounds. All 100% Rust code. I learned to use Clippy and the Browser F12 Console. The html+JavaScript+css part didn't change much. It is just "boilerplate code".  
-I opened an account on Azure and create a Linux Virtual Machine to host the game server mem3_server. I learned how to build with Rust and Warp a http + WebSocket server that listen on the same port.  
-I learned a lot!  
-And there is more to learn. The parts of Rust that are very different from other languages are the toughest. A totally new way of thinking.  
-## VSCode
-I use `//region:` and `//endregion` a lot. To Fold it and UnFold it press `F1` type `fold` and choose from a variety of options. Start with `Fold All`   
+- onw workspace with 2 projects
+- cargo make
 ## Next projects
-https://github.com/LucianoBestia/mem3_game  
+vacation  
 ## References
 Rust  
 https://doc.rust-lang.org/book/  

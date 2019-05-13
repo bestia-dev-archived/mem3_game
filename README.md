@@ -5,12 +5,16 @@ https://github.com/LucianoBestia/mem3
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
 It is s time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.
 # Build
+Clone:  
+```
+git clone git@github.com:LucianoBestia/mem3_game.git
+cd mem3
+```
 Install cargo-make:  
 `cargo install --force cargo-make`  
   
-`cargo make my-flow`  
-
-
+Build:  
+`cargo make`  
 
 # TODO
 . In mem3 I plan to:
