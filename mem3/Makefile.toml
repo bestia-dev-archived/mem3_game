@@ -15,16 +15,19 @@ disabled = true
 [tasks.format-flow]
 disabled = true
 
+[tasks.post-build]
+disabled = true
+
 [tasks.pre-test]
 disabled = true
 
 [tasks.test]
 disabled = true
 
-[tasks.post_test]
+[tasks.post-test]
 disabled = true
 
-[tasks.test_flow]
+[tasks.test-flow]
 disabled = true
 
 [tasks.pre-build]

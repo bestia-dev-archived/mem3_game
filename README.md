@@ -4,7 +4,6 @@ https://github.com/LucianoBestia/mem2
 # mem3_game
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
 It is s time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.  
-Each project in the Workspace has its own readme.md. Read them too.  
 ## Clone
 ```
 git clone git@github.com:LucianoBestia/mem3_game.git
@@ -38,7 +37,7 @@ The player with more points wins.
 ## Next projects
 vacation  
 ## TODO:
-. In mem3 I plan to:
+In mem3 I plan to:
 - think more about references inside structs. I think, the lifetime <'a> is the solution. I have here all structs, that will live until the end of the application.  
 - player can choose more than one content: "images, sounds and text"
 - fetch text.json from Rust
@@ -49,14 +48,16 @@ vacation
 
 ## Changelog
 - Only one WorkSpace for the frontend and end backend projects. To see how it works.  
-- use cargo make (build scripts) to copy the pkg of frontend to the backend folder - I cannot find an easy way to make a simple static struct tree and access the data of the parent struct. I tried a lot of things:
+- use cargo make (build scripts) to copy the pkg of frontend to the backend folder  
+- I cannot find an easy way to make a simple static struct tree and access the data of the parent struct. I tried a lot of things:
 1. In mem2 I successfully used Rc<RefCell<>>, but it is not a compile time approach.  
 2. Inside a struct tree, Rust cannot have a normal reference to another field/struct. Because all objects are movable, that reference will be bad after the struct moves.
 3. Lifetimes are a mess. I have Dodrio here, that lives longer then the main() function. So I cannot have any struct, that lives long enough. Except the one struct, that I move into Dodrio. It can be only one struct, because it is a Dodrio function and the parameters are fixed.  
 4. Box, UnsafeCell, ... acrobatics
 5. A single arena for all the data?? All have the same lifetime.
 6. There is a Pin struct for making unmovable data.
-7. There are strange crates for terrible workarounds:  
+7. Making 'static mutable Mutex? As global data?
+8. There are strange crates for terrible workarounds:  
 https://github.com/diwic/refstruct-rs  
 https://github.com/Kimundi/owning-ref-rs  
 https://github.com/jpernst/rental  
