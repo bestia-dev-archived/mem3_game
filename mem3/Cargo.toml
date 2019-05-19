@@ -1,10 +1,10 @@
 [package]
 name = "mem3"
-version = "1.0.2"
+version = "1.0.0"
 authors = ["Luciano Furlan <Luciano.Bestia@gmail.com>"]
 edition = "2018"
 description = "Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio"
-repository = "https://github.com/LucianoBestia/mem3"
+repository = "https://github.com/LucianoBestia/mem3_game"
 readme = "README.md"
 license = "MIT"
 keywords = ["wasm","dodrio","virtual dom"]
@@ -16,6 +16,7 @@ crate-type = ["cdylib"]
 [features]
 
 [dependencies]
+mem3_common = { path = "../mem3_common" }
 dodrio = "0.1.0"
 wasm-bindgen = { version = "0.2.43", features = ["serde-serialize"] }
 console_error_panic_hook = "0.1.6"

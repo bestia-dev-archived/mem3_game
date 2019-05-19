@@ -1,7 +1,7 @@
 [package]
-name = "mem3_server"
+name = "mem3_common"
 version = "1.0.0" 
-description = "server for the game mem3 http + websocket on the same port"
+description = "commons for mem3 wasm and server"
 authors = ["Luciano Bestia"]
 license = "MIT"
 readme = "README.md"
@@ -10,16 +10,6 @@ categories = ["web-programming::http-server"]
 keywords = ["warp", "server", "http", "websocket"]
 
 [dependencies]
-mem3_common = { path = "../mem3_common" }
-futures = "0.1"
-log = "0.4.6"
-env_logger = "0.6.1"
-warp="0.1.15"
-regex="1.1.6"
-# cmd line input parameters
-clap ="2.33.0"
-# colorful output to screen
-ansi_term = "0.11.0"
 serde = "1.0.91"
 serde_derive = "1.0.91"
 serde_json = "1.0"

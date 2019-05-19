@@ -38,9 +38,9 @@ extern crate env_logger;
 extern crate futures;
 #[macro_use]
 extern crate log;
+extern crate mem3_common;
 extern crate regex;
 extern crate serde;
-#[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 extern crate warp;
@@ -49,8 +49,10 @@ use clap::{App, Arg};
 use env_logger::Env;
 use futures::sync::mpsc;
 use futures::{Future, Stream};
+use mem3_common::WsMessage;
 use regex::Regex;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::env;
 use std::fs::File;
 use std::io::prelude::*;
@@ -74,63 +76,6 @@ static NEXT_USER_ID: AtomicUsize = AtomicUsize::new(1);
 /// - Value is a sender of `warp::ws::Message`
 type Users = Arc<Mutex<HashMap<usize, mpsc::UnboundedSender<Message>>>>;
 
-///`WsMessage` enum for websocket
-#[derive(Serialize, Deserialize)]
-enum WsMessage {
-    ///Dummy
-    Dummy {
-        ///anything
-        dummy: String,
-    },
-    ///Request websocket Uid
-    RequestWsUid {
-        ///anything
-        test: String,
-    },
-    ///response for ConnectionTest
-    ResponseWsUid {
-        ///websocket Uid
-        ws_uid: usize,
-    },
-    ///want to play
-    WantToPlay {
-        ///ws client instance unique id. To not listen the echo to yourself.
-        ws_client_instance: usize,
-        ///content folder name
-        content_folder_name: String,
-    },
-    /// accept play
-    AcceptPlay {
-        ///ws client instance unique id. To not listen the echo to yourself.
-        ws_client_instance: usize,
-        ///act is the action to take on the receiver
-        card_grid_data: String,
-    },
-    ///player click
-    PlayerClick {
-        ///ws client instance unique id. To not listen the echo to yourself.
-        ws_client_instance: usize,
-        ///card_index
-        card_index: usize,
-        ///count click inside one turn
-        count_click_inside_one_turn: usize,
-    },
-    ///player change
-    PlayerChange {
-        ///ws client instance unique id. To not listen the echo to yourself.
-        ws_client_instance: usize,
-    },
-    ///Request the spelling from the WebSocket server
-    RequestSpelling {
-        ///the file with the spelling
-        filename: String,
-    },
-    ///Receive the spelling from the WebSocket server
-    ResponseSpellingJson {
-        ///the spelling from the server
-        json: String,
-    },
-}
 //endregion
 
 ///main function of the binary
@@ -299,7 +244,7 @@ fn user_connected(ws: WebSocket, users: Users) -> impl Future<Item = (), Error =
 }
 
 ///on receive websocket message
-fn user_message(my_id: usize, messg: &Message, users: &Users) {
+fn user_message(ws_uid_of_message: usize, messg: &Message, users: &Users) {
     // Skip any non-Text messages...
     let msg = if let Ok(s) = messg.to_str() {
         s
@@ -324,13 +269,13 @@ fn user_message(my_id: usize, messg: &Message, users: &Users) {
         WsMessage::Dummy { dummy } => info!("Dummy: {}", dummy),
         WsMessage::RequestWsUid { test } => {
             info!("RequestWsUid: {}", test);
-            let j = serde_json::to_string(&WsMessage::ResponseWsUid { ws_uid: my_id })
-                .expect("serde_json::to_string(&WsMessage::ResponseWsUid { ws_uid: my_id })");
+            let j = serde_json::to_string(&WsMessage::ResponseWsUid { your_ws_uid: ws_uid_of_message })
+                .expect("serde_json::to_string(&WsMessage::ResponseWsUid { your_ws_uid: ws_uid_of_message })");
             info!("send ResponseWsUid: {}", j);
             match users
                 .lock()
                 .expect("error users.lock()")
-                .get(&my_id)
+                .get(&ws_uid_of_message)
                 .unwrap()
                 .unbounded_send(Message::text(j))
             {
@@ -360,7 +305,7 @@ fn user_message(my_id: usize, messg: &Message, users: &Users) {
             match users
                 .lock()
                 .expect("error users.lock()")
-                .get(&my_id)
+                .get(&ws_uid_of_message)
                 .unwrap()
                 .unbounded_send(Message::text(j))
             {
@@ -368,17 +313,60 @@ fn user_message(my_id: usize, messg: &Message, users: &Users) {
                 Err(_disconnected) => {}
             }
         }
-        _ => broadcast(users, my_id, &new_msg),
+        WsMessage::WantToPlay { .. } => broadcast(users, ws_uid_of_message, &new_msg),
+        mem3_common::WsMessage::ResponseWsUid { .. }
+        | mem3_common::WsMessage::ResponseSpellingJson { .. }
+        | mem3_common::WsMessage::AcceptPlay { .. }
+        | mem3_common::WsMessage::PlayerClick { .. }
+        | mem3_common::WsMessage::PlayerChange { .. } => send_to_other_player(users, &new_msg),
+    }
+}
+///New message from this user send only to the other player.
+fn send_to_other_player(users: &Users, new_msg: &str) {
+    //info!("send_to_other_player: {}", new_msg);
+    //the other user is in the other_ws_uid field
+
+    //serde_json knows: 1. map (key+value pair) and 2. array
+    let json_map: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(new_msg).expect("error serde_json::from_str(new_msg)");
+    //info!("js_other_ws_uid: {}", v);
+    let tuple = json_map
+        .iter()
+        .next()
+        .expect("error json_map.iter().next()");
+
+    let object = tuple.1;
+    info!("object: {}", object);
+
+    let js_other_ws_uid = object
+        .get("other_ws_uid")
+        .expect("error object.get(other_ws_uid)");
+    info!("js_other_ws_uid: {}", js_other_ws_uid);
+
+    let i64_other_ws_uid = js_other_ws_uid.as_i64().expect("js_other_ws_uid.as_i64()");
+    info!("i64_other_ws_uid: {}", i64_other_ws_uid);
+    let other_ws_uid =
+        usize::try_from(i64_other_ws_uid).expect("usize::try_from(i64_other_ws_uid)");
+
+    match users
+        .lock()
+        .expect("error users.lock()")
+        .get(&other_ws_uid)
+        .unwrap()
+        .unbounded_send(Message::text(String::from(new_msg)))
+    {
+        Ok(()) => (),
+        Err(_disconnected) => {}
     }
 }
 ///broadcast is the simplest
-fn broadcast(users: &Users, my_id: usize, new_msg: &str) {
+fn broadcast(users: &Users, ws_uid_of_message: usize, new_msg: &str) {
     // New message from this user, send it to everyone else (except same uid)...
     // We use `retain` instead of a for loop so that we can reap any user that
     // appears to have disconnected.
     info!("broadcast: {}", new_msg);
     for (&uid, tx) in users.lock().expect("error users.lock()").iter() {
-        if my_id != uid {
+        if ws_uid_of_message != uid {
             match tx.unbounded_send(Message::text(String::from(new_msg))) {
                 Ok(()) => (),
                 Err(_disconnected) => {

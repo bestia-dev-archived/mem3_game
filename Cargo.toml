@@ -3,4 +3,5 @@
 members = [
     "mem3",
     "mem3_server",
+    "mem3_common",
 ]
