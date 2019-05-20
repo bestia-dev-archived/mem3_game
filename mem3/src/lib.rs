@@ -87,7 +87,7 @@ struct RootRenderingComponent {
     ///game data will be inside of Root, but reference for all other RenderingComponents
     game_data: GameData,
     ///subComponent: score
-    players_and_scores: PlayersAndScores,
+    players_and_scores: Cached<PlayersAndScores>,
     ///subComponent: the static parts can be cached.
     /// I am not sure if a field in this struct is the best place to put it.
     cached_rules_and_description: Cached<RulesAndDescription>,
@@ -168,7 +168,7 @@ impl RootRenderingComponent {
 
         let game_rule_01 = RulesAndDescription {};
         let cached_rules_and_description = Cached::new(game_rule_01);
-        let players_and_scores = PlayersAndScores::new();
+        let players_and_scores = Cached::new(PlayersAndScores::new());
 
         RootRenderingComponent {
             game_data,
@@ -178,7 +178,9 @@ impl RootRenderingComponent {
     }
     ///check invalidate render cache for all sub components
     fn check_invalidate_for_all_components(&mut self) {
-        self.players_and_scores.update_intern_cache(&self.game_data);
+        if self.players_and_scores.update_intern_cache(&self.game_data) {
+            Cached::invalidate(&mut self.players_and_scores);
+        }
     }
     ///The onclick event passed by javascript executes all the logic
     ///and changes only the fields of the Card Grid struct.

@@ -51,6 +51,7 @@ https://github.com/LucianoBestia/dodrio_multi_component
 -- re-invite player for different game
 - the server broadcasts only the first "Want to play?". All the rest is a private conversation between 2 players.  
 - use files as separate modules of the same crate  
+- cached PlayersAndScores
 
 ## References
 ### mem3  
