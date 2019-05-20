@@ -37,7 +37,7 @@ If the cards match, they are left face up permanently and the player receives a 
 The game is over when all the cards are permanently face up. It means that the sum of points is exactly 8.  
 Click on "Play again?" to start the game over.  
 ## Next projects
-vacation  
+https://github.com/LucianoBestia/mem4_game  
 ## Changelog
 - Only one WorkSpace for the frontend and end backend projects and commons. To see how it works.  
 - use cargo make (build scripts) to copy needed files to webfolder. This folder can be then copied to some website and works.  
