@@ -1,0 +1,16 @@
+[tasks.init]
+disabled = true
+
+#I tried with windows-alias here, but it didn't work.
+
+[tasks.end]
+script = [
+    "xcopy c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3\\pkg\\*.* c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3_server\\webfolder\\mem3\\pkg\\ /y ",
+    "xcopy c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3_server\\target\\debug\\mem3_server.exe c:\\Users\\Luciano\\RustProjects\\mem3_game\\mem3_server\\mem3\\webfolder\\ /y ",
+# I cannot script the exact IP here.  
+# It must be copied from the mem3_server.exe output.
+    "start chrome http://192.168.1.57:80 ", 
+    "start chrome http://192.168.1.57:80 ", 
+    "cd webfolder",
+    "mem3_server.exe"
+]

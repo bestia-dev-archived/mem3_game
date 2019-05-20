@@ -27,8 +27,8 @@ This game is for exactly 2 players.
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
 To start over just refresh the webpage.  
 The first player clicks on 'Invite for play?' and broadcasts the message over WebSocket.  
-He can choose different types of play: alphabet, animal,...
-Player2 then sees on the screen 'Click to Accept play!', clicks it and sends the message back to Player1.  
+He can choose different types of play: alphabet, animal,...  
+Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.  
 The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.  
 On the screen under the grid are clear signals which player plays and which waits.  
 Player1 flips over two cards with two clicks. The cards are accompanied by sounds and text on the screen.  
@@ -38,13 +38,6 @@ The game is over when all the cards are permanently face up. It means that the s
 Click on "Play again?" to start the game over.  
 ## Next projects
 vacation  
-## TODO:
-In mem3 I plan to:
-- better documentation. Do I really have to write very long doc-comments in the code ? It looks terrible. But it is useful when reading the code. Maybe I can hide it in a region block. Dodrio has beautiful docs. How did he do it?  
-- use cache for Dom sections e.g. players_and_scores  
-- maybe add a simple chat?
-- idea: one phone is too small for a bigger game for more players. But if 4 people put their phones
-on the table, the grid is 4x bigger. They must play in the same room, on the same table. That is more entertaining. It can even bigger, no limits.
 ## Changelog
 - Only one WorkSpace for the frontend and end backend projects. To see how it works.  
 - use cargo make (build scripts) to copy the pkg of frontend to the backend folder  
@@ -55,7 +48,7 @@ https://github.com/LucianoBestia/dodrio_multi_component
 - player can choose more than one content: "images, sounds and text"
 - fetch text.json from Rust over WebSocket
 2019-05-20
--- reinvite player for different game
+-- re-invite player for different game
 - the server broadcasts only the first "Want to play?". All the rest is a private conversation between 2 players. 
 
 ## References
@@ -84,8 +77,6 @@ Images included free cartoon characters:
 https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
 Favicon from  
 https://www.favicon-generator.org/search/BLACK/M  
-
-
 ### mem3_server  
 Rust  
 https://github.com/seanmonstar/warp  

@@ -1,7 +1,11 @@
 
+[tasks.init]
+disabled = true
+
 [tasks.build]
 command = "wasm-pack"
 args = ["build", "--target", "web"]
+
 
 [tasks.pre-format]
 disabled = true
@@ -31,4 +35,7 @@ disabled = true
 disabled = true
 
 [tasks.pre-build]
+disabled = true
+
+[tasks.end]
 disabled = true

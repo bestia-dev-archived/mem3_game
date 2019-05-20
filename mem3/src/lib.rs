@@ -41,6 +41,13 @@
 //endregion
 
 //region: extern and use statements
+mod gamedata;
+mod playersandscores;
+mod rulesanddescription;
+use crate::gamedata::{Card, CardStatusCardFace, GameData, GameState};
+use crate::playersandscores::PlayersAndScores;
+use crate::rulesanddescription::RulesAndDescription;
+
 extern crate console_error_panic_hook;
 extern crate log;
 extern crate serde;
@@ -59,14 +66,12 @@ use dodrio::{Cached, Node, Render};
 use js_sys::Reflect;
 use mem3_common::WsMessage;
 use rand::rngs::SmallRng;
-use rand::seq::SliceRandom;
 use rand::FromEntropy;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
 use web_sys::{console, WebSocket};
 //Strum is a set of macros and traits for working with enums and strings easier in Rust.
 use futures::Future;
-use strum_macros::AsRefStr;
 use wasm_bindgen::JsCast;
 //endregion
 
@@ -75,95 +80,6 @@ use wasm_bindgen::JsCast;
 const GAME_TITLE: &str = "mem3";
 ///fixed filename for card face down
 const SRC_FOR_CARD_FACE_DOWN: &str = "img/mem_image_00_cardfacedown.png";
-
-///Text of game rules.
-///Multiline string literal just works.
-///End of line in the code is simply and intuitively end of line in the string.
-///The special character \ at the end of the line in code means that it is NOT the end of the line for the string.
-///The escape sequence \n means end of line also.
-const GAME_RULES:& str = "This game is for exactly 2 players. 
-Both players must have the webpage simultaneously opened in their browsers to allow communication.
-To start over just refresh the webpage.
-The first player clicks on 'Ask Player2 to play?' and broadcasts the message over WebSocket.
-Player2 then sees on the screen 'Click here to Accept play!', clicks it and sends the message back to Player1.
-The game starts with a grid of 8 randomly shuffled card pairs face down - 16 cards in all.
-On the screen under the grid are clear signals which player plays and which waits.
-Player1 flips over two cards with two clicks.
-If the cards do not match, the other player clicks on 'Click here to Take your turn !' and both cards are flipped back face down. Then it is his turn and he clicks to flip over his two cards.
-If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.
-The player with more points wins.";
-
-///game description
-const GAME_DESCRIPTION:& str = "Learning to use Rust Wasm/WebAssembly with Dodrio Virtual Dom and WebSockets communication - second iteration. 
-The simple memory game is for kids. 
-The images are funny cartoon characters from the alphabet. 
-The cards grid is only 4x4. 
-For fun I added the sounds of Morse alphabet codes and 
-show the International Aviation spelling on the screen.";
-
-///Aviation Spelling
-///the zero element is card face down or empty, alphabet begins with 01 : A
-///TODO: read dynamically from json file. Now I know how to do it in javascript, but not in Rust.
-#[derive(Serialize, Deserialize, Clone)]
-struct Spelling {
-    ///names of spelling
-    name: Vec<String>,
-}
-
-///the game can be in various states and that differentiate the UI and actions
-#[derive(AsRefStr)]
-enum GameState {
-    ///the start of the game
-    Start,
-    ///Player1 Asking WantToPlay
-    Asking,
-    ///Player2 is asked WantToPlay
-    Asked,
-    ///play (the turn is in RootRenderingComponent.player_turn)
-    Play,
-    ///end game
-    EndGame,
-}
-
-///the 3 possible states of one card
-#[derive(Serialize, Deserialize)]
-enum CardStatusCardFace {
-    ///card face down
-    Down,
-    ///card face Up Temporary
-    UpTemporary,
-    ///card face up Permanently
-    UpPermanently,
-}
-
-///all the data for one card
-#[derive(Serialize, Deserialize)]
-struct Card {
-    ///card status
-    status: CardStatusCardFace,
-    ///field for src attribute for HTML element imagea and filename of card image
-    card_number_and_img_src: usize,
-    ///field for id attribute for HTML element image contains the card index
-    card_index_and_id: usize,
-}
-
-///Render Component: player score (cacheable?)
-/// I tried different approaches to access the game data
-/// All of them are just crazy. In mem2 I succeeded with Rc<RefCell<>>, but I don't like it.
-/// Here I will do terrible design: I will copy the data from the parent struct.
-struct PlayersAndScores {
-    ///whose turn is now:  player 1 or 2
-    player_turn: usize,
-    ///player1 points
-    player1_points: usize,
-    ///player2 points
-    player2_points: usize,
-    ///What player am I
-    this_machine_player_number: usize,
-}
-
-///Render Component: The static parts can be cached easily.
-pub struct RulesAndDescription {}
 
 ///Root Render Component: the card grid struct has all the needed data for play logic and rendering
 struct RootRenderingComponent {
@@ -174,45 +90,6 @@ struct RootRenderingComponent {
     ///subComponent: the static parts can be cached.
     /// I am not sure if a field in this struct is the best place to put it.
     cached_rules_and_description: Cached<RulesAndDescription>,
-}
-///game data
-struct GameData {
-    ///vector of cards
-    vec_cards: Vec<Card>,
-    //First turn: Player1 clicks 2 times and opens 2 cards.
-    //If cards match, Player1 receives one point and countinues: 2 click for 2 cards.
-    //If not match: Player2 clicks the Change button to close opened cards.
-    //Then starts the Player2 turn.
-    ///count click inside one turn
-    count_click_inside_one_turn: usize,
-    ///card index of first click
-    card_index_of_first_click: usize,
-    ///card index of second click
-    card_index_of_second_click: usize,
-    ///counts only clicks that flip the card. The third click is not counted.
-    count_all_clicks: usize,
-    ///web socket. used it to send message onclick.
-    ws: WebSocket,
-    ///my ws client instance unique id. To not listen the echo to yourself.
-    my_ws_uid: usize,
-    ///other ws client instance unique id. To listen only to one accepted other player.
-    other_ws_uid: usize,
-    ///game state: Start,Asking,Asked,Player1,Player2
-    game_state: GameState,
-    ///content folder name
-    content_folder_name: String,
-    ///What player am I
-    this_machine_player_number: usize,
-    ///whose turn is now:  player 1 or 2
-    player_turn: usize,
-    ///player1 points
-    player1_points: usize,
-    ///player2 points
-    player2_points: usize,
-    ///content folders vector
-    content_folders: Vec<String>,
-    ///spellings
-    spelling: Option<Spelling>,
 }
 //endregion
 
@@ -278,104 +155,6 @@ pub fn session_storage() -> web_sys::Storage {
 }
 //endregion
 
-//region: GameData
-impl GameData {
-    ///prepare new random data
-    fn prepare_random_data(&mut self) {
-        //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
-        //vec_of_random_numbers is 0 based
-        let mut vec_of_random_numbers = Vec::new();
-        let mut rng = SmallRng::from_entropy();
-        let mut i = 0;
-        while i < 8 {
-            //gen_range is lower inclusive, upper exclusive 26 + 1
-            let num: usize = rng.gen_range(1, 27);
-            if vec_of_random_numbers.contains(&num) {
-                //do nothing if the random number is repeated
-                //debug!("random duplicate {} in {:?}", num, vec_of_random_numbers);
-            } else {
-                //push a pair of the same number
-                vec_of_random_numbers.push(num);
-                vec_of_random_numbers.push(num);
-                i += 1;
-            }
-        }
-        //endregion
-
-        //region: shuffle the numbers
-        let vrndslice = vec_of_random_numbers.as_mut_slice();
-        vrndslice.shuffle(&mut rng);
-        //endregion
-
-        //region: create Cards from random numbers
-        let mut vec_cards = Vec::new();
-
-        //Index 0 is special and reserved for FaceDown. Cards start with base 1
-        let new_card = Card {
-            status: CardStatusCardFace::Down,
-            card_number_and_img_src: 0,
-            card_index_and_id: 0,
-        };
-        vec_cards.push(new_card);
-
-        //create the 16 card and push to the vector
-        for (index, random_number) in vec_of_random_numbers.iter().enumerate() {
-            let new_card = Card {
-                status: CardStatusCardFace::Down,
-                //dereference random number from iterator
-                card_number_and_img_src: *random_number,
-                //card base index will be 1. 0 is reserved for FaceDown.
-                card_index_and_id: index.checked_add(1).expect("usize overflow"),
-            };
-            vec_cards.push(new_card);
-        }
-        //endregion
-        self.vec_cards = vec_cards;
-    }
-    ///asociated function: before Accept, there are not random numbers, just default cards.
-    fn prepare_for_empty() -> Vec<Card> {
-        //prepare 16 empty cards. The random is calculated only on AcceptPlay.
-        let mut vec_cards = Vec::new();
-        //I must prepare the 0 index, but then I don't use it ever.
-        for i in 0..=16 {
-            let new_card = Card {
-                status: CardStatusCardFace::Down,
-                card_number_and_img_src: 1,
-                card_index_and_id: i,
-            };
-            vec_cards.push(new_card);
-        }
-        vec_cards
-    }
-    ///constructor of game data
-    pub fn new(ws: WebSocket, my_ws_uid: usize) -> Self {
-        //return from constructor
-        GameData {
-            vec_cards: Self::prepare_for_empty(),
-            count_click_inside_one_turn: 0,
-            card_index_of_first_click: 0,
-            card_index_of_second_click: 0,
-            count_all_clicks: 0,
-            ws,
-            my_ws_uid,
-            other_ws_uid: 0, //zero means not accepted yet
-            game_state: GameState::Start,
-            content_folder_name: "alphabet".to_string(),
-            player1_points: 0,
-            player2_points: 0,
-            this_machine_player_number: 0, //unknown until WantToPlay+Accept
-            player_turn: 0,
-            content_folders: vec![
-                String::from("alphabet"),
-                String::from("animals"),
-                String::from("negative"),
-            ],
-            spelling: None,
-        }
-    }
-}
-//endregion
-
 //region:RootRenderingComponent struct is the only persistant data we have in Rust Virtual Dom.dodrio
 //in the constructor we initialize that data.
 //Later onclick we change this data.
@@ -388,18 +167,17 @@ impl RootRenderingComponent {
 
         let game_rule_01 = RulesAndDescription {};
         let cached_rules_and_description = Cached::new(game_rule_01);
-        let players_and_scores = PlayersAndScores {
-            player1_points: 0,
-            player2_points: 0,
-            this_machine_player_number: 0, //unknown until WantToPlay+Accept
-            player_turn: 0,
-        };
+        let players_and_scores = PlayersAndScores::new();
 
         RootRenderingComponent {
             game_data,
             players_and_scores,
             cached_rules_and_description,
         }
+    }
+    ///check invalidate render cache for all sub components
+    fn check_invalidate_for_all_components(&mut self) {
+        self.players_and_scores.update_intern_cache(&self.game_data);
     }
     ///The onclick event passed by javascript executes all the logic
     ///and changes only the fields of the Card Grid struct.
@@ -463,9 +241,9 @@ impl RootRenderingComponent {
                 {
                     //give points
                     if self.game_data.player_turn == 1 {
-                        self.set_player1_points(self.game_data.player1_points + 1);
+                        self.game_data.player1_points += 1;
                     } else {
-                        self.set_player2_points(self.game_data.player2_points + 1)
+                        self.game_data.player2_points += 1
                     }
 
                     // the two cards matches. make them permanent FaceUp
@@ -500,14 +278,15 @@ impl RootRenderingComponent {
                 }
             }
         }
+        self.check_invalidate_for_all_components();
     }
     ///fn on change for both click and we msg.
     fn take_turn(&mut self) {
-        self.set_player_turn(if self.game_data.player_turn == 1 {
+        self.game_data.player_turn = if self.game_data.player_turn == 1 {
             2
         } else {
             1
-        });
+        };
 
         //click on Change button closes first and second card
         let x1 = self.game_data.card_index_of_first_click;
@@ -525,14 +304,10 @@ impl RootRenderingComponent {
         self.game_data.card_index_of_first_click = 0;
         self.game_data.card_index_of_second_click = 0;
         self.game_data.count_click_inside_one_turn = 0;
+        self.check_invalidate_for_all_components();
     }
     ///reset the data to replay the game
     fn reset(&mut self) {
-        self.players_and_scores.player1_points = 0;
-        self.players_and_scores.player2_points = 0;
-        self.players_and_scores.this_machine_player_number = 0;
-        self.players_and_scores.player_turn = 0;
-
         self.game_data.vec_cards = GameData::prepare_for_empty();
         self.game_data.count_click_inside_one_turn = 0;
         self.game_data.card_index_of_first_click = 0;
@@ -546,30 +321,9 @@ impl RootRenderingComponent {
         self.game_data.this_machine_player_number = 0;
         self.game_data.player_turn = 0;
         self.game_data.spelling = None;
+
+        self.check_invalidate_for_all_components();
     }
-    //region: change this data in 2 places simultaneously. Awful.
-    //TODO: Because cannot find a way to have a reference to parent struct.
-    ///set
-    fn set_player_turn(&mut self, player_turn: usize) {
-        self.game_data.player_turn = player_turn;
-        self.players_and_scores.player_turn = player_turn;
-    }
-    ///set
-    fn set_player1_points(&mut self, player1_points: usize) {
-        self.game_data.player1_points = player1_points;
-        self.players_and_scores.player1_points = player1_points;
-    }
-    ///set
-    fn set_player2_points(&mut self, player2_points: usize) {
-        self.game_data.player2_points = player2_points;
-        self.players_and_scores.player2_points = player2_points;
-    }
-    ///set
-    fn set_this_machine_player_number(&mut self, this_machine_player_number: usize) {
-        self.game_data.this_machine_player_number = this_machine_player_number;
-        self.players_and_scores.this_machine_player_number = this_machine_player_number;
-    }
-    //endregion
 }
 //endregion
 
@@ -850,7 +604,9 @@ bumpalo::format!(in bump, "{}",
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
                             //region: send WsMessage over websocket
-                            root_rendering_component.set_this_machine_player_number(1);
+                            root_rendering_component
+                                .game_data
+                                .this_machine_player_number = 1;
                             root_rendering_component.game_data.game_state = GameState::Asking;
                             root_rendering_component.game_data.content_folder_name =
                                 folder_name.clone();
@@ -948,7 +704,7 @@ bumpalo::format!(in bump, "{}",
                         root_rendering_component
                             .game_data
                             .this_machine_player_number = 2;
-                        root_rendering_component.set_player_turn(1);
+                        root_rendering_component.game_data.player_turn=1;
                         root_rendering_component.game_data.game_state = GameState::Play;
 
                         //send request to Websocket server for spellings
@@ -1078,8 +834,6 @@ bumpalo::format!(in bump, "{}",
 
         //region: create the whole virtual dom. The verbose stuff is in private functions
 
-        let game_data = &self.game_data;
-
         div(bump)
             .attr("class", "m_container")
             .children([
@@ -1094,7 +848,7 @@ bumpalo::format!(in bump, "{}",
                 div_game_status_and_player_actions(self, bump),
                 h5(bump)
                     .children([text(
-                        bumpalo::format!(in bump, "Count of Clicks: {}", game_data.count_all_clicks)
+                        bumpalo::format!(in bump, "Count of Clicks: {}", self.game_data.count_all_clicks)
                             .into_bump_str(),
                     )])
                     .finish(),
@@ -1102,98 +856,6 @@ bumpalo::format!(in bump, "{}",
             ])
             .finish()
         //endregion
-    }
-}
-
-impl Render for RulesAndDescription {
-    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
-    ///In this case I don't need to invalidate because it is a static content.
-    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
-    where
-        'a: 'bump,
-    {
-        div(bump)
-        .children([
-            h4(bump)
-            .children(text_with_br_newline(GAME_DESCRIPTION,bump))
-            .finish(),
-            h2(bump)
-            .children([text(
-                bumpalo::format!(in bump, "Memory game rules: {}", "").into_bump_str(),
-            )])
-            .finish(),
-            h4(bump)
-            .children(text_with_br_newline(GAME_RULES, bump))
-            .finish(),
-            h6(bump)
-            .children([
-                text(bumpalo::format!(in bump, "Learning Rust programming: {}", "").into_bump_str(),),
-                a(bump)
-                    .attr("href", "https://github.com/LucianoBestia/mem3")  
-                    .attr("target","_blank")              
-                    .children([text(bumpalo::format!(in bump, "https://github.com/LucianoBestia/mem3{}", "").into_bump_str(),)])
-                    .finish(),
-            ])
-                .finish(),
-        ])
-        .finish()
-    }
-}
-
-impl Render for PlayersAndScores {
-    ///This rendering will be rendered and then cached . It will not be rerendered untill invalidation.
-    ///It is ivalidate, when the points change.
-    ///html element to with scores for 2 players
-    fn render<'a, 'bump>(&'a self, bump: &'bump Bump) -> Node<'bump>
-    where
-        'a: 'bump,
-    {
-        //return
-        div(bump)
-            .attr("class", "grid_container_players")
-            .attr(
-                "style",
-                bumpalo::format!(in bump, "grid-template-columns: auto auto auto;{}","")
-                    .into_bump_str(),
-            )
-            .children([
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr(
-                        "style",
-                        bumpalo::format!(in bump,"text-align: left;color:{};text-decoration:{}",
-                            if self.player_turn==1 {"green"} else {"red"},
-                            if self.this_machine_player_number==1 {"underline"} else {"none"}
-                        )
-                        .into_bump_str(),
-                    )
-                    .children([text(
-                        bumpalo::format!(in bump, "player1: {}",self.player1_points)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr("style", "text-align: center;")
-                    .children([text("")])
-                    .finish(),
-                div(bump)
-                    .attr("class", "grid_item")
-                    .attr(
-                        "style",
-                        bumpalo::format!(in bump,"text-align: right;color:{};text-decoration:{}",
-                            if self.player_turn==2 {"green"} else {"red"},
-                            if self.this_machine_player_number==2 {"underline"} else {"none"}
-                        )
-                        .into_bump_str(),
-                    )
-                    .children([text(
-                        bumpalo::format!(in bump, "player2: {}",self.player2_points)
-                            .into_bump_str(),
-                    )])
-                    .finish(),
-            ])
-            .finish()
     }
 }
 //endregion
@@ -1260,18 +922,21 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                 });
 
         //match enum by variant and prepares the future that will be executed on the next tick
+        //in this big enum I put only boilerplate code that don't change any data.
+        //for changing data I put code in separate functions for easy reading.
         match msg {
+            //I don't know why I need a dummy, but is entertaining to have one.
             WsMessage::Dummy { dummy } => console::log_1(&dummy.into()),
+            //this RequestWsUid is only for the WebSocket server
             WsMessage::RequestWsUid { test } => console::log_1(&test.into()),
             WsMessage::ResponseWsUid { your_ws_uid } => {
                 wasm_bindgen_futures::spawn_local(
                     weak.with_component({
                         move |root| {
                             console::log_1(&"ResponseWsUid".into());
-                            let mut root_rendering_component =
+                            let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //rcv from Websocket server
-                            root_rendering_component.game_data.my_ws_uid = your_ws_uid;
+                            on_response_ws_uid(root_rendering_component, your_ws_uid);
                         }
                     })
                     .map_err(|_| ()),
@@ -1286,17 +951,17 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let mut root_rendering_component =
+                            let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
+
                             if let GameState::EndGame | GameState::Start | GameState::Asked =
                                 root_rendering_component.game_data.game_state
                             {
-                                console::log_1(&"rcv wanttoplay".into());
-                                root_rendering_component.reset();
-                                root_rendering_component.game_data.game_state = GameState::Asked;
-                                root_rendering_component.game_data.other_ws_uid = my_ws_uid;
-                                root_rendering_component.game_data.content_folder_name =
-                                    content_folder_name;
+                                on_want_to_play(
+                                    root_rendering_component,
+                                    my_ws_uid,
+                                    content_folder_name,
+                                );
                                 v2.schedule_render();
                             }
                         }
@@ -1316,14 +981,8 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                             console::log_1(&"rcv AcceptPlay".into());
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            root_rendering_component.set_player_turn(1);
-                            root_rendering_component.game_data.game_state = GameState::Play;
-                            let v: Vec<Card> = serde_json::from_str(card_grid_data.as_str())
-                                .expect("Field 'text' is not Vec<Card>");
-                            root_rendering_component.game_data.vec_cards = v;
-                            root_rendering_component.game_data.other_ws_uid = my_ws_uid;
+                            on_accept_play(root_rendering_component, my_ws_uid, &card_grid_data);
                             v2.schedule_render();
-                            //}
                         }
                     })
                     .map_err(|_| ()),
@@ -1342,20 +1001,13 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable reference is dropped on the end of the function
-                            let mut game_data = &mut root_rendering_component.game_data;
-                            //rcv only from one other player
-                            if my_ws_uid == game_data.other_ws_uid {
-                                console::log_1(&"other_ws_uid".into());
-                                game_data.count_click_inside_one_turn = count_click_inside_one_turn;
-                                if count_click_inside_one_turn == 1 {
-                                    game_data.card_index_of_first_click = card_index;
-                                } else if count_click_inside_one_turn == 2 {
-                                    game_data.card_index_of_second_click = card_index;
-                                } else {
-                                    //nothing
-                                }
-                                root_rendering_component.card_on_click();
+                            console::log_1(&"other_ws_uid".into());
+                            if my_ws_uid == root_rendering_component.game_data.other_ws_uid {
+                                on_player_click(
+                                    root_rendering_component,
+                                    count_click_inside_one_turn,
+                                    card_index,
+                                );
                                 v2.schedule_render();
                             }
                         }
@@ -1370,13 +1022,9 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                         move |root| {
                             let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this game_data mutable reference is dropped on the end of the function
-                            //clippy is wrong about dropping the mut. I need it.
-                            let game_data = &mut root_rendering_component.game_data;
-                            //rcv only from other player
-                            if my_ws_uid == game_data.other_ws_uid {
-                                console::log_1(&"PlayerChange".into());
-                                root_rendering_component.take_turn();
+                            console::log_1(&"PlayerChange".into());
+                            if my_ws_uid == root_rendering_component.game_data.other_ws_uid {
+                                on_player_change(root_rendering_component);
                                 v2.schedule_render();
                             }
                         }
@@ -1391,11 +1039,9 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         move |root| {
                             console::log_1(&"ResponseSpellingJson".into());
-                            let mut root_rendering_component =
+                            let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //rcv from Websocket server
-                            root_rendering_component.game_data.spelling =
-                                serde_json::from_str(&json).expect("error root_rendering_component.game_data.spelling = serde_json::from_str(&json)");
+                            on_response_spelling_json(root_rendering_component, &json)
                         }
                     })
                     .map_err(|_| ()),
@@ -1406,10 +1052,9 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         move |root| {
                             console::log_1(&"EndGame".into());
-                            let mut root_rendering_component =
+                            let root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //rcv from Websocket server
-                            root_rendering_component.game_data.game_state = GameState::EndGame;
+                            on_end_game(root_rendering_component);
                         }
                     })
                     .map_err(|_| ()),
@@ -1425,4 +1070,70 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     //don't drop the eventlistener from memory
     cb_mrh.forget();
 }
+//region: all functions for receive message (like events)
+// I separate the code into functions to avoid looking at all that boilerplate in the big match around futures and components.
+// All the data changing must be encapsulated inside these functions.
+///msg response we uid
+fn on_response_ws_uid(root_rendering_component: &mut RootRenderingComponent, your_ws_uid: usize) {
+    root_rendering_component.game_data.my_ws_uid = your_ws_uid;
+}
+///msg want to play
+fn on_want_to_play(
+    root_rendering_component: &mut RootRenderingComponent,
+    my_ws_uid: usize,
+    content_folder_name: String,
+) {
+    console::log_1(&"rcv wanttoplay".into());
+    root_rendering_component.reset();
+    root_rendering_component.game_data.game_state = GameState::Asked;
+    root_rendering_component.game_data.other_ws_uid = my_ws_uid;
+    root_rendering_component.game_data.content_folder_name = content_folder_name;
+}
+///msg accept play
+fn on_accept_play(
+    root_rendering_component: &mut RootRenderingComponent,
+    my_ws_uid: usize,
+    card_grid_data: &str,
+) {
+    root_rendering_component.game_data.player_turn = 1;
+    root_rendering_component.game_data.game_state = GameState::Play;
+    let v: Vec<Card> = serde_json::from_str(card_grid_data).expect("Field 'text' is not Vec<Card>");
+    root_rendering_component.game_data.vec_cards = v;
+    root_rendering_component.game_data.other_ws_uid = my_ws_uid;
+    root_rendering_component.check_invalidate_for_all_components();
+}
+///msg end game
+fn on_end_game(root_rendering_component: &mut RootRenderingComponent) {
+    root_rendering_component.game_data.game_state = GameState::EndGame;
+}
+///msg response spelling json
+fn on_response_spelling_json(root_rendering_component: &mut RootRenderingComponent, json: &str) {
+    root_rendering_component.game_data.spelling = serde_json::from_str(json)
+        .expect("error root_rendering_component.game_data.spelling = serde_json::from_str(&json)");
+}
+///msg player change
+fn on_player_change(root_rendering_component: &mut RootRenderingComponent) {
+    root_rendering_component.take_turn();
+}
+///msg player click
+fn on_player_click(
+    root_rendering_component: &mut RootRenderingComponent,
+    count_click_inside_one_turn: usize,
+    card_index: usize,
+) {
+    root_rendering_component
+        .game_data
+        .count_click_inside_one_turn = count_click_inside_one_turn;
+    if count_click_inside_one_turn == 1 {
+        root_rendering_component.game_data.card_index_of_first_click = card_index;
+    } else if count_click_inside_one_turn == 2 {
+        root_rendering_component
+            .game_data
+            .card_index_of_second_click = card_index;
+    } else {
+        //nothing
+    }
+    root_rendering_component.card_on_click();
+}
+//endregion
 //endregion
