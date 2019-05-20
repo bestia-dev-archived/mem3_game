@@ -121,6 +121,8 @@ enum GameState {
     Asked,
     ///play (the turn is in RootRenderingComponent.player_turn)
     Play,
+    ///end game
+    EndGame,
 }
 
 ///the 3 possible states of one card
@@ -278,8 +280,8 @@ pub fn session_storage() -> web_sys::Storage {
 
 //region: GameData
 impl GameData {
-    ///constructor of game data
-    pub fn new(ws: WebSocket, my_ws_uid: usize) -> Self {
+    ///prepare new random data
+    fn prepare_random_data(&mut self) {
         //region: find 8 distinct random numbers between 1 and 26 for the alphabet cards
         //vec_of_random_numbers is 0 based
         let mut vec_of_random_numbers = Vec::new();
@@ -328,10 +330,28 @@ impl GameData {
             vec_cards.push(new_card);
         }
         //endregion
-
+        self.vec_cards = vec_cards;
+    }
+    ///asociated function: before Accept, there are not random numbers, just default cards.
+    fn prepare_for_empty() -> Vec<Card> {
+        //prepare 16 empty cards. The random is calculated only on AcceptPlay.
+        let mut vec_cards = Vec::new();
+        //I must prepare the 0 index, but then I don't use it ever.
+        for i in 0..=16 {
+            let new_card = Card {
+                status: CardStatusCardFace::Down,
+                card_number_and_img_src: 1,
+                card_index_and_id: i,
+            };
+            vec_cards.push(new_card);
+        }
+        vec_cards
+    }
+    ///constructor of game data
+    pub fn new(ws: WebSocket, my_ws_uid: usize) -> Self {
         //return from constructor
         GameData {
-            vec_cards,
+            vec_cards: Self::prepare_for_empty(),
             count_click_inside_one_turn: 0,
             card_index_of_first_click: 0,
             card_index_of_second_click: 0,
@@ -368,7 +388,6 @@ impl RootRenderingComponent {
 
         let game_rule_01 = RulesAndDescription {};
         let cached_rules_and_description = Cached::new(game_rule_01);
-
         let players_and_scores = PlayersAndScores {
             player1_points: 0,
             player2_points: 0,
@@ -463,6 +482,21 @@ impl RootRenderingComponent {
                         .expect("error game_data.card_index_of_second_click")
                         .status = CardStatusCardFace::UpPermanently;
                     self.game_data.count_click_inside_one_turn = 0;
+                    //the sum of points is 8, the game is over
+                    if self.game_data.player1_points + self.game_data.player2_points == 8 {
+                        self.game_data.game_state = GameState::EndGame;
+                        //send message
+                        self.game_data
+                            .ws
+                            .send_with_str(
+                                &serde_json::to_string(&WsMessage::EndGame {
+                                    my_ws_uid: self.game_data.my_ws_uid,
+                                    other_ws_uid: self.game_data.other_ws_uid,
+                                })
+                                .expect("error sending EndGame"),
+                            )
+                            .expect("Failed to send EndGame");
+                    }
                 }
             }
         }
@@ -491,6 +525,27 @@ impl RootRenderingComponent {
         self.game_data.card_index_of_first_click = 0;
         self.game_data.card_index_of_second_click = 0;
         self.game_data.count_click_inside_one_turn = 0;
+    }
+    ///reset the data to replay the game
+    fn reset(&mut self) {
+        self.players_and_scores.player1_points = 0;
+        self.players_and_scores.player2_points = 0;
+        self.players_and_scores.this_machine_player_number = 0;
+        self.players_and_scores.player_turn = 0;
+
+        self.game_data.vec_cards = GameData::prepare_for_empty();
+        self.game_data.count_click_inside_one_turn = 0;
+        self.game_data.card_index_of_first_click = 0;
+        self.game_data.card_index_of_second_click = 0;
+        self.game_data.count_all_clicks = 0;
+        self.game_data.other_ws_uid = 0;
+        self.game_data.game_state = GameState::Start;
+        self.game_data.content_folder_name = "alphabet".to_string();
+        self.game_data.player1_points = 0;
+        self.game_data.player2_points = 0;
+        self.game_data.this_machine_player_number = 0;
+        self.game_data.player_turn = 0;
+        self.game_data.spelling = None;
     }
     //region: change this data in 2 places simultaneously. Awful.
     //TODO: Because cannot find a way to have a reference to parent struct.
@@ -773,6 +828,7 @@ bumpalo::format!(in bump, "{}",
         fn ask_to_play<'a, 'bump>(
             root_rendering_component: &'a RootRenderingComponent,
             bump: &'bump Bump,
+            invite_string: &str,
         ) -> Node<'bump>
         where
             'a: 'bump,
@@ -787,7 +843,7 @@ bumpalo::format!(in bump, "{}",
                         .attr("style", "color:green;")
                         .children([text(
                             //show Ask Player2 to Play!
-                            bumpalo::format!(in bump, "Ask other Player to play {} !", folder_name)
+                            bumpalo::format!(in bump, "{} for {} !", invite_string, folder_name)
                                 .into_bump_str(),
                         )])
                         .on("click", move |root, vdom, _event| {
@@ -848,10 +904,30 @@ bumpalo::format!(in bump, "{}",
                 // 1S Ask Player2 to play!
                 console::log_1(&"GameState::Start".into());
                 //return Ask Player2 to play!
-                ask_to_play(root_rendering_component, bump)
+                ask_to_play(root_rendering_component, bump, "Invite")
+            } else if let GameState::EndGame = root_rendering_component.game_data.game_state {
+                //end game ,Play again?
+                h3(bump)
+                    .attr("id", "ws_elem")
+                    .attr("style", "color:green;")
+                    .children([text(
+                        //Play again?
+                        bumpalo::format!(in bump, "Play again{}?", "").into_bump_str(),
+                    )])
+                    .on("click", move |root, vdom, _event| {
+                        let root_rendering_component = root.unwrap_mut::<RootRenderingComponent>();
+                        root_rendering_component.reset();
+                        vdom.schedule_render();
+                    })
+                    .finish()
             } else if let GameState::Asking = root_rendering_component.game_data.game_state {
                 //return wait for the other player
-                div_wait_for_other_player(bump)
+                div(bump)
+                    .children([
+                        div_wait_for_other_player(bump),
+                        ask_to_play(root_rendering_component, bump, "Reinvite"),
+                    ])
+                    .finish()
             } else if let GameState::Asked = root_rendering_component.game_data.game_state {
                 // 2S Click here to Accept play!
                 console::log_1(&"GameState::Asked".into());
@@ -861,13 +937,14 @@ bumpalo::format!(in bump, "{}",
                     .attr("style", "color:green;")
                     .children([text(
                         //show Ask Player2 to Play!
-                        bumpalo::format!(in bump, "Click here to Accept play! {}", "")
+                        bumpalo::format!(in bump, "Click here to Accept {}!", root_rendering_component.game_data.content_folder_name)
                             .into_bump_str(),
                     )])
                     .on("click", move |root, vdom, _event| {
                         let mut root_rendering_component =
                             root.unwrap_mut::<RootRenderingComponent>();
                         //region: send WsMessage over websocket
+                        root_rendering_component.game_data.prepare_random_data();
                         root_rendering_component
                             .game_data
                             .this_machine_player_number = 2;
@@ -1209,15 +1286,17 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     weak.with_component({
                         let v2 = weak.clone();
                         move |root| {
-                            let root_rendering_component =
+                            let mut root_rendering_component =
                                 root.unwrap_mut::<RootRenderingComponent>();
-                            //this self mutable reference is dropped on the end of the function
-                            let mut game_data = &mut root_rendering_component.game_data;
-                            if let GameState::Start = game_data.game_state {
+                            if let GameState::EndGame | GameState::Start | GameState::Asked =
+                                root_rendering_component.game_data.game_state
+                            {
                                 console::log_1(&"rcv wanttoplay".into());
-                                game_data.game_state = GameState::Asked;
-                                game_data.other_ws_uid = my_ws_uid;
-                                game_data.content_folder_name = content_folder_name;
+                                root_rendering_component.reset();
+                                root_rendering_component.game_data.game_state = GameState::Asked;
+                                root_rendering_component.game_data.other_ws_uid = my_ws_uid;
+                                root_rendering_component.game_data.content_folder_name =
+                                    content_folder_name;
                                 v2.schedule_render();
                             }
                         }
@@ -1227,8 +1306,8 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
             }
             WsMessage::AcceptPlay {
                 my_ws_uid,
-                other_ws_uid,
                 card_grid_data,
+                ..
             } => {
                 wasm_bindgen_futures::spawn_local(
                     weak.with_component({
@@ -1252,9 +1331,9 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
             }
             WsMessage::PlayerClick {
                 my_ws_uid,
-                other_ws_uid,
                 card_index,
                 count_click_inside_one_turn,
+                ..
             } => {
                 wasm_bindgen_futures::spawn_local(
                     weak.with_component({
@@ -1284,10 +1363,7 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                     .map_err(|_| ()),
                 );
             }
-            WsMessage::PlayerChange {
-                my_ws_uid,
-                other_ws_uid,
-            } => {
+            WsMessage::PlayerChange { my_ws_uid, .. } => {
                 wasm_bindgen_futures::spawn_local(
                     weak.with_component({
                         let v2 = weak.clone();
@@ -1320,6 +1396,20 @@ fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
                             //rcv from Websocket server
                             root_rendering_component.game_data.spelling =
                                 serde_json::from_str(&json).expect("error root_rendering_component.game_data.spelling = serde_json::from_str(&json)");
+                        }
+                    })
+                    .map_err(|_| ()),
+                );
+            }
+            WsMessage::EndGame { .. } => {
+                wasm_bindgen_futures::spawn_local(
+                    weak.with_component({
+                        move |root| {
+                            console::log_1(&"EndGame".into());
+                            let mut root_rendering_component =
+                                root.unwrap_mut::<RootRenderingComponent>();
+                            //rcv from Websocket server
+                            root_rendering_component.game_data.game_state = GameState::EndGame;
                         }
                     })
                     .map_err(|_| ()),

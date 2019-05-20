@@ -113,7 +113,8 @@ fn main() {
     //region: cmdline parameters
     //TODO: is this a clear case for shadowing? The same value in different types
     //default ip and port
-    let df_local_ip = local_ip_get().expect("cannot get local ip");
+    //let df_local_ip = local_ip_get().expect("cannot get local ip");
+    let df_local_ip = "127.0.0.22";
     let df_local_port = 80;
     //string representation of defaults
     let prm_ip = df_local_ip.to_string();
@@ -318,6 +319,7 @@ fn user_message(ws_uid_of_message: usize, messg: &Message, users: &Users) {
         | mem3_common::WsMessage::ResponseSpellingJson { .. }
         | mem3_common::WsMessage::AcceptPlay { .. }
         | mem3_common::WsMessage::PlayerClick { .. }
+        | mem3_common::WsMessage::EndGame { .. }
         | mem3_common::WsMessage::PlayerChange { .. } => send_to_other_player(users, &new_msg),
     }
 }

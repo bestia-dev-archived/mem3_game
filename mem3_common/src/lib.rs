@@ -87,6 +87,13 @@ pub enum WsMessage {
         ///other player unique id. Used by the WebSocket server.
         other_ws_uid: usize,
     },
+    ///end game
+    EndGame {
+        ///ws client instance unique id. To not listen the echo to yourself.
+        my_ws_uid: usize,
+        ///other player unique id. Used by the WebSocket server.
+        other_ws_uid: usize,
+    },
     ///Request the spelling from the WebSocket server
     RequestSpelling {
         ///the file with the spelling
