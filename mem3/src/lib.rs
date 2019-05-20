@@ -44,35 +44,36 @@
 mod gamedata;
 mod playersandscores;
 mod rulesanddescription;
+mod websocketcommunication;
 use crate::gamedata::{Card, CardStatusCardFace, GameData, GameState};
 use crate::playersandscores::PlayersAndScores;
 use crate::rulesanddescription::RulesAndDescription;
+use crate::websocketcommunication::setup_ws_connection;
+use crate::websocketcommunication::setup_ws_msg_recv;
 
+//Strum is a set of macros and traits for working with enums and strings easier in Rust.
 extern crate console_error_panic_hook;
 extern crate log;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate web_sys;
-//Strum is a set of macros and traits for working with enums and strings easier in Rust.
 extern crate mem3_common;
+extern crate serde_json;
 extern crate strum;
 extern crate strum_macros;
+extern crate web_sys;
 
 use dodrio::builder::*;
 use dodrio::bumpalo::{self, Bump};
 use dodrio::{Cached, Node, Render};
-use js_sys::Reflect;
+
 use mem3_common::WsMessage;
 use rand::rngs::SmallRng;
 use rand::FromEntropy;
 use rand::Rng;
 use wasm_bindgen::prelude::*;
-use web_sys::{console, WebSocket};
-//Strum is a set of macros and traits for working with enums and strings easier in Rust.
-use futures::Future;
 use wasm_bindgen::JsCast;
+use web_sys::{console, WebSocket};
 //endregion
 
 //region: enum, structs, const,...
@@ -324,6 +325,58 @@ impl RootRenderingComponent {
 
         self.check_invalidate_for_all_components();
     }
+    //region: all functions for receive message (like events)
+    // I separate the code into functions to avoid looking at all that boilerplate in the big match around futures and components.
+    // All the data changing must be encapsulated inside these functions.
+    ///msg response we uid
+    fn on_response_ws_uid(&mut self, your_ws_uid: usize) {
+        self.game_data.my_ws_uid = your_ws_uid;
+    }
+    ///msg want to play
+    fn on_want_to_play(&mut self, my_ws_uid: usize, content_folder_name: String) {
+        console::log_1(&"rcv wanttoplay".into());
+        self.reset();
+        self.game_data.game_state = GameState::Asked;
+        self.game_data.other_ws_uid = my_ws_uid;
+        self.game_data.content_folder_name = content_folder_name;
+    }
+    ///msg accept play
+    fn on_accept_play(&mut self, my_ws_uid: usize, card_grid_data: &str) {
+        self.game_data.player_turn = 1;
+        self.game_data.game_state = GameState::Play;
+        let v: Vec<Card> =
+            serde_json::from_str(card_grid_data).expect("Field 'text' is not Vec<Card>");
+        self.game_data.vec_cards = v;
+        self.game_data.other_ws_uid = my_ws_uid;
+        self.check_invalidate_for_all_components();
+    }
+    ///msg end game
+    fn on_end_game(&mut self) {
+        self.game_data.game_state = GameState::EndGame;
+    }
+    ///msg response spelling json
+    fn on_response_spelling_json(&mut self, json: &str) {
+        self.game_data.spelling = serde_json::from_str(json).expect(
+            "error root_rendering_component.game_data.spelling = serde_json::from_str(&json)",
+        );
+    }
+    ///msg player change
+    fn on_player_change(&mut self) {
+        self.take_turn();
+    }
+    ///msg player click
+    fn on_player_click(&mut self, count_click_inside_one_turn: usize, card_index: usize) {
+        self.game_data.count_click_inside_one_turn = count_click_inside_one_turn;
+        if count_click_inside_one_turn == 1 {
+            self.game_data.card_index_of_first_click = card_index;
+        } else if count_click_inside_one_turn == 2 {
+            self.game_data.card_index_of_second_click = card_index;
+        } else {
+            //nothing
+        }
+        self.card_on_click();
+    }
+    //endregion
 }
 //endregion
 
@@ -858,282 +911,4 @@ bumpalo::format!(in bump, "{}",
         //endregion
     }
 }
-//endregion
-
-//region: websocket communication
-///setup websocket connection
-fn setup_ws_connection(location_href: &str) -> WebSocket {
-    //web-sys has websocket for Rust exactly like javascript has¸
-    console::log_1(&"location_href".into());
-    console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
-    //location_href comes in this format  http://localhost:4000/
-    let mut loc_href = location_href.replace("http://", "ws://");
-    //Only for debugging in the development environment
-    //let mut loc_href = String::from("ws://192.168.1.57:80/");
-    loc_href.push_str("mem3ws/");
-    console::log_1(&wasm_bindgen::JsValue::from_str(&loc_href));
-    //same server address and port as http server
-    let ws = WebSocket::new(&loc_href).expect("WebSocket failed to connect.");
-
-    //I don't know why is clone needed
-    let ws_c = ws.clone();
-    //It looks that the first send is in some way a handshake and is part of the connection
-    //it will be execute onopen as a closure
-    let open_handler = Box::new(move || {
-        console::log_1(&"Connection opened, sending 'test' to server".into());
-        ws_c.send_with_str(
-            &serde_json::to_string(&WsMessage::RequestWsUid {
-                test: String::from("test"),
-            })
-            .expect("error sending test"),
-        )
-        .expect("Failed to send 'test' to server");
-    });
-
-    let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
-    ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
-    //don't drop the open_handler memory
-    cb_oh.forget();
-    ws
-}
-
-/// receive websocket msg callback. I don't understand this much. Too much future and promises.
-fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
-    //Player1 on machine1 have a button Ask player to play! before he starts to play.
-    //Click and it sends the WsMessage want_to_play. Player1 waits for the reply and cannot play.
-    //Player2 on machine2 see the WsMessage and Accepts it.
-    //It sends a WsMessage with the vector of cards. Both will need the same vector.
-    //The vector of cards is copied.
-    //Player1 click a card. It opens locally and sends WsMessage with index of the card.
-    //Machine2 receives the WsMessage and runs the same code as the player would click. The RootRenderingComponent is blocked.
-    //The method with_component() needs a future (promise) It will be executed on the next vdom tick.
-    //This is the only way I found to write to RootRenderingComponent fields.
-    let weak = vdom.weak();
-    let msg_recv_handler = Box::new(move |msg: JsValue| {
-        let data: JsValue =
-            Reflect::get(&msg, &"data".into()).expect("No 'data' field in websocket message!");
-
-        //serde_json can find out the variant of WsMessage
-        //parse json and put data in the enum
-        let msg: WsMessage =
-            serde_json::from_str(&data.as_string().expect("Field 'data' is not string"))
-                .unwrap_or_else(|_x| WsMessage::Dummy {
-                    dummy: String::from("error"),
-                });
-
-        //match enum by variant and prepares the future that will be executed on the next tick
-        //in this big enum I put only boilerplate code that don't change any data.
-        //for changing data I put code in separate functions for easy reading.
-        match msg {
-            //I don't know why I need a dummy, but is entertaining to have one.
-            WsMessage::Dummy { dummy } => console::log_1(&dummy.into()),
-            //this RequestWsUid is only for the WebSocket server
-            WsMessage::RequestWsUid { test } => console::log_1(&test.into()),
-            WsMessage::ResponseWsUid { your_ws_uid } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        move |root| {
-                            console::log_1(&"ResponseWsUid".into());
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            on_response_ws_uid(root_rendering_component, your_ws_uid);
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-
-            WsMessage::WantToPlay {
-                my_ws_uid,
-                content_folder_name,
-            } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        let v2 = weak.clone();
-                        move |root| {
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-
-                            if let GameState::EndGame | GameState::Start | GameState::Asked =
-                                root_rendering_component.game_data.game_state
-                            {
-                                on_want_to_play(
-                                    root_rendering_component,
-                                    my_ws_uid,
-                                    content_folder_name,
-                                );
-                                v2.schedule_render();
-                            }
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-            WsMessage::AcceptPlay {
-                my_ws_uid,
-                card_grid_data,
-                ..
-            } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        let v2 = weak.clone();
-                        move |root| {
-                            console::log_1(&"rcv AcceptPlay".into());
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            on_accept_play(root_rendering_component, my_ws_uid, &card_grid_data);
-                            v2.schedule_render();
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-            WsMessage::PlayerClick {
-                my_ws_uid,
-                card_index,
-                count_click_inside_one_turn,
-                ..
-            } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        let v2 = weak.clone();
-                        console::log_1(&"player_click".into());
-                        move |root| {
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            console::log_1(&"other_ws_uid".into());
-                            if my_ws_uid == root_rendering_component.game_data.other_ws_uid {
-                                on_player_click(
-                                    root_rendering_component,
-                                    count_click_inside_one_turn,
-                                    card_index,
-                                );
-                                v2.schedule_render();
-                            }
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-            WsMessage::PlayerChange { my_ws_uid, .. } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        let v2 = weak.clone();
-                        move |root| {
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            console::log_1(&"PlayerChange".into());
-                            if my_ws_uid == root_rendering_component.game_data.other_ws_uid {
-                                on_player_change(root_rendering_component);
-                                v2.schedule_render();
-                            }
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-            //this message is for the WebSocket server
-            WsMessage::RequestSpelling { filename } => console::log_1(&filename.into()),
-            WsMessage::ResponseSpellingJson { json } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        move |root| {
-                            console::log_1(&"ResponseSpellingJson".into());
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            on_response_spelling_json(root_rendering_component, &json)
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-            WsMessage::EndGame { .. } => {
-                wasm_bindgen_futures::spawn_local(
-                    weak.with_component({
-                        move |root| {
-                            console::log_1(&"EndGame".into());
-                            let root_rendering_component =
-                                root.unwrap_mut::<RootRenderingComponent>();
-                            on_end_game(root_rendering_component);
-                        }
-                    })
-                    .map_err(|_| ()),
-                );
-            }
-        }
-    });
-
-    //magic ??
-    let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
-    ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
-
-    //don't drop the eventlistener from memory
-    cb_mrh.forget();
-}
-//region: all functions for receive message (like events)
-// I separate the code into functions to avoid looking at all that boilerplate in the big match around futures and components.
-// All the data changing must be encapsulated inside these functions.
-///msg response we uid
-fn on_response_ws_uid(root_rendering_component: &mut RootRenderingComponent, your_ws_uid: usize) {
-    root_rendering_component.game_data.my_ws_uid = your_ws_uid;
-}
-///msg want to play
-fn on_want_to_play(
-    root_rendering_component: &mut RootRenderingComponent,
-    my_ws_uid: usize,
-    content_folder_name: String,
-) {
-    console::log_1(&"rcv wanttoplay".into());
-    root_rendering_component.reset();
-    root_rendering_component.game_data.game_state = GameState::Asked;
-    root_rendering_component.game_data.other_ws_uid = my_ws_uid;
-    root_rendering_component.game_data.content_folder_name = content_folder_name;
-}
-///msg accept play
-fn on_accept_play(
-    root_rendering_component: &mut RootRenderingComponent,
-    my_ws_uid: usize,
-    card_grid_data: &str,
-) {
-    root_rendering_component.game_data.player_turn = 1;
-    root_rendering_component.game_data.game_state = GameState::Play;
-    let v: Vec<Card> = serde_json::from_str(card_grid_data).expect("Field 'text' is not Vec<Card>");
-    root_rendering_component.game_data.vec_cards = v;
-    root_rendering_component.game_data.other_ws_uid = my_ws_uid;
-    root_rendering_component.check_invalidate_for_all_components();
-}
-///msg end game
-fn on_end_game(root_rendering_component: &mut RootRenderingComponent) {
-    root_rendering_component.game_data.game_state = GameState::EndGame;
-}
-///msg response spelling json
-fn on_response_spelling_json(root_rendering_component: &mut RootRenderingComponent, json: &str) {
-    root_rendering_component.game_data.spelling = serde_json::from_str(json)
-        .expect("error root_rendering_component.game_data.spelling = serde_json::from_str(&json)");
-}
-///msg player change
-fn on_player_change(root_rendering_component: &mut RootRenderingComponent) {
-    root_rendering_component.take_turn();
-}
-///msg player click
-fn on_player_click(
-    root_rendering_component: &mut RootRenderingComponent,
-    count_click_inside_one_turn: usize,
-    card_index: usize,
-) {
-    root_rendering_component
-        .game_data
-        .count_click_inside_one_turn = count_click_inside_one_turn;
-    if count_click_inside_one_turn == 1 {
-        root_rendering_component.game_data.card_index_of_first_click = card_index;
-    } else if count_click_inside_one_turn == 2 {
-        root_rendering_component
-            .game_data
-            .card_index_of_second_click = card_index;
-    } else {
-        //nothing
-    }
-    root_rendering_component.card_on_click();
-}
-//endregion
 //endregion

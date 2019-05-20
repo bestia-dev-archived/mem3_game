@@ -39,17 +39,18 @@ Click on "Play again?" to start the game over.
 ## Next projects
 vacation  
 ## Changelog
-- Only one WorkSpace for the frontend and end backend projects. To see how it works.  
-- use cargo make (build scripts) to copy the pkg of frontend to the backend folder  
-- mem3 RenderComponents have an internal cache for values. These are copied/cloned from game_data.
+- Only one WorkSpace for the frontend and end backend projects and commons. To see how it works.  
+- use cargo make (build scripts) to copy needed files to webfolder. This folder can be then copied to some website and works.  
+- mem3 RenderComponents have an internal cache for values. These are copied/cloned from game_data. ANd invalidated accordingly.
 - For the research of different approach to game_data references I opened a new project with minimalistic code.  
 https://github.com/LucianoBestia/dodrio_multi_component  
 2019-05-19
 - player can choose more than one content: "images, sounds and text"
-- fetch text.json from Rust over WebSocket
+- fetch text.json from Rust asynchronously over WebSocket
 2019-05-20
 -- re-invite player for different game
-- the server broadcasts only the first "Want to play?". All the rest is a private conversation between 2 players. 
+- the server broadcasts only the first "Want to play?". All the rest is a private conversation between 2 players.  
+- use files as separate modules of the same crate  
 
 ## References
 ### mem3  
