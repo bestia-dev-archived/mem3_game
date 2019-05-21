@@ -1,5 +1,5 @@
 Things are changing fast. This is the situation on 2019-05-20. Luciano Bestia  
-Read the `Last project` first:  
+Read the `Last project`:  
 https://github.com/LucianoBestia/mem2  
 # mem3_game
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
