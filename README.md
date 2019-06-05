@@ -4,6 +4,8 @@ https://github.com/LucianoBestia/mem2
 # mem3_game
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
 It is time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.  
+You can play the game here (hosted on google cloud platform):  
+http://34.87.17.103/mem3  
 ## Clone
 ```
 git clone git@github.com:LucianoBestia/mem3_game.git
