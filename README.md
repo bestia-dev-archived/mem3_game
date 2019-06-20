@@ -24,6 +24,8 @@ It will:
 - run the http+WebSocket server  
   
 Please refresh the browser tabs manually after that, so they download the new files.  
+A little about cargo-make:  
+https://medium.com/@sagiegurari/automating-your-rust-workflows-with-cargo-make-part-1-of-5-introduction-and-basics-b19ced7e7057  
 # Memory game rules
 This game is for exactly 2 players.  
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
