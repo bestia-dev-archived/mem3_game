@@ -15,7 +15,9 @@ pub fn setup_ws_connection(location_href: &str) -> WebSocket {
     console::log_1(&"location_href".into());
     console::log_1(&wasm_bindgen::JsValue::from_str(location_href));
     //location_href comes in this format  http://localhost:4000/
-    let mut loc_href = location_href.replace("http://", "ws://");
+    let mut loc_href = location_href
+        .replace("http://", "ws://")
+        .replace("https://", "wss://");
     //Only for debugging in the development environment
     //let mut loc_href = String::from("ws://192.168.1.57:80/");
     loc_href.push_str("mem3ws/");
@@ -38,7 +40,7 @@ pub fn setup_ws_connection(location_href: &str) -> WebSocket {
         .expect("Failed to send 'test' to server");
     });
 
-    let cb_oh: Closure<Fn()> = Closure::wrap(open_handler);
+    let cb_oh: Closure<dyn Fn()> = Closure::wrap(open_handler);
     ws.set_onopen(Some(cb_oh.as_ref().unchecked_ref()));
     //don't drop the open_handler memory
     cb_oh.forget();
@@ -206,7 +208,7 @@ pub fn setup_ws_msg_recv(ws: &WebSocket, vdom: &dodrio::Vdom) {
     });
 
     //magic ??
-    let cb_mrh: Closure<Fn(JsValue)> = Closure::wrap(msg_recv_handler);
+    let cb_mrh: Closure<dyn Fn(JsValue)> = Closure::wrap(msg_recv_handler);
     ws.set_onmessage(Some(cb_mrh.as_ref().unchecked_ref()));
 
     //don't drop the eventlistener from memory
