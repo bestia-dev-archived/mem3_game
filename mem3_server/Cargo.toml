@@ -8,6 +8,7 @@ readme = "README.md"
 repository = "https://github.com/lucianobestia/mem3_game"
 categories = ["web-programming::http-server"]
 keywords = ["warp", "server", "http", "websocket"]
+publish = false
 
 [dependencies]
 mem3_common = { path = "../mem3_common" }

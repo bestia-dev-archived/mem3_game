@@ -5,7 +5,7 @@ https://github.com/LucianoBestia/mem2
 Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
 It is time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.  
 You can play the game here (hosted on google cloud platform):  
-http://34.87.17.103/mem3  
+https://bestia.dev/mem3  
 ## Clone
 ```
 git clone git@github.com:LucianoBestia/mem3_game.git
@@ -40,6 +40,15 @@ If the cards do not match, the other player clicks on 'Click here to Take your t
 If the cards match, they are left face up permanently and the player receives a point. He continues to play, he opens the next two cards.  
 The game is over when all the cards are permanently face up. It means that the sum of points is exactly 8.  
 Click on "Play again?" to start the game over.  
+
+## cargo crev reviews and advisory
+
+It is recommended to always use [cargo-crev](https://github.com/crev-dev/cargo-crev)  
+to verify the trustworthiness of each of your dependencies.  
+Please, spread this info.  
+On the web use this url to read crate reviews. Example:  
+<https://bestia.dev/cargo_crev_web/query/num-traits>  
+
 ## Next projects
 https://github.com/LucianoBestia/mem4_game  
 ## Changelog
