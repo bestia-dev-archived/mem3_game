@@ -1,32 +1,40 @@
-Things are changing fast. This is the situation on 2019-05-20. Luciano Bestia  
-Read the `Last project`:  
-https://github.com/LucianoBestia/mem2  
 # mem3_game
-Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio and WebSocket communication - part three.
-It is time to let mem2 development as it is. A step toward idiomatic Rust, but not the final step.  
+
+**A step toward idiomatic Rust, but not the final step.**  
+***version: 3.0  date: 2019-05-20 author: [Dev_Bestia](https://bestia.dev) repository: [GitHub](https://github.com/LucianoBestia/mem3_game)***  
+
+Read the `Last project`:  
+<https://github.com/LucianoBestia/mem2>  
 You can play the game here (hosted on google cloud platform):  
-https://bestia.dev/mem3  
+<https://bestia.dev/mem3>  
+
 ## Clone
-```
+
+```bash
 git clone git@github.com:LucianoBestia/mem3_game.git
 cd mem3
 ```
+
 ## Build
+
 Install cargo-make:  
 `cargo install --force cargo-make`  
   
 Build:  
 `cargo make`  
 It will:
-- build both projects, 
+
+- build both projects,
 - copy pkg folder and index.html into server project,
 - run 2 chrome tabs
 - run the http+WebSocket server  
   
 Please refresh the browser tabs manually after that, so they download the new files.  
 A little about cargo-make:  
-https://medium.com/@sagiegurari/automating-your-rust-workflows-with-cargo-make-part-1-of-5-introduction-and-basics-b19ced7e7057  
+<https://medium.com/@sagiegurari/automating-your-rust-workflows-with-cargo-make-part-1-of-5-introduction-and-basics-b19ced7e7057>  
+
 # Memory game rules
+
 This game is for exactly 2 players.  
 Both players must have the webpage simultaneously opened in the browser to allow communication.  
 To start over just refresh the webpage.  
@@ -50,13 +58,16 @@ On the web use this url to read crate reviews. Example:
 <https://web.crev.dev/rust-reviews/crate/num-traits/>  
 
 ## Next projects
-https://github.com/LucianoBestia/mem4_game  
+
+<https://github.com/LucianoBestia/mem4_game>  
+
 ## Changelog
+
 - Only one WorkSpace for the frontend and end backend projects and commons. To see how it works.  
 - use cargo make (build scripts) to copy needed files to webfolder. This folder can be then copied to some website and works.  
 - mem3 RenderComponents have an internal cache for values. These are copied/cloned from game_data. ANd invalidated accordingly.
 - For the research of different approach to game_data references I opened a new project with minimalistic code.  
-https://github.com/LucianoBestia/dodrio_multi_component  
+<https://github.com/LucianoBestia/dodrio_multi_component>  
 2019-05-19
 - player can choose more than one content: "images, sounds and text"
 - fetch text.json from Rust asynchronously over WebSocket
@@ -67,40 +78,42 @@ https://github.com/LucianoBestia/dodrio_multi_component
 - cached PlayersAndScores
 
 ## References
+
 ### mem3  
+
 Rust  
-https://doc.rust-lang.org/book/  
-https://rust-lang-nursery.github.io/rust-cookbook/  
+<https://doc.rust-lang.org/book/>  
+<https://rust-lang-nursery.github.io/rust-cookbook/>  
 virtual Dom  
-https://github.com/fitzgen/dodrio  
+<https://github.com/fitzgen/dodrio>  
 web, http, css  
-https://github.com/brson/basic-http-server  
-https://www.w3schools.com/w3css/  
+<https://github.com/brson/basic-http-server>  
+<https://www.w3schools.com/w3css/>  
 WebSocket  
-https://ws-rs.org/
-https://github.com/housleyjk/ws-rs  
+<https://ws-rs.org/>  
+<https://github.com/housleyjk/ws-rs>  
 wasm, wasm-bindgen  
-https://rustwasm.github.io/docs/wasm-bindgen  
-https://github.com/anderejd/wasm-bindgen-minimal-example  
-https://github.com/grizwako/rust-wasm-chat-frontend  
+<https://rustwasm.github.io/docs/wasm-bindgen>  
+<https://github.com/anderejd/wasm-bindgen-minimal-example>  
+<https://github.com/grizwako/rust-wasm-chat-frontend>  
 JsValue, future, promises  
-https://crates.io/crates/wasm-bindgen-futures  
-https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs  
+<https://crates.io/crates/wasm-bindgen-futures>  
+<https://github.com/fitzgen/dodrio/blob/master/examples/todomvc/src/router.rs>  
 random  
-https://rust-random.github.io/book/  
+<https://rust-random.github.io/book/>  
 Images included free cartoon characters:  
-https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters  
+<https://vectorcharacters.net/alphabet-vectors/alphabet-cartoon-characters>  
 Favicon from  
-https://www.favicon-generator.org/search/BLACK/M  
+<https://www.favicon-generator.org/search/BLACK/M>  
+
 ### mem3_server  
+
 Rust  
-https://github.com/seanmonstar/warp  
-https://docs.rs/env_logger/0.6.0/env_logger/struct.Builder.html  
-https://github.com/tcr/rust-local-ip  
-https://regex101.com/
-https://docs.rs/env_logger/*/env_logger/
-https://docs.rs/regex/1.1.2/regex/struct.Captures.html
-https://doc.rust-lang.org/reference/tokens.html#raw-string-literals
-https://github.com/clap-rs/clap  
-
-
+<https://github.com/seanmonstar/warp>  
+<https://docs.rs/env_logger/0.6.0/env_logger/struct.Builder.html>  
+<https://github.com/tcr/rust-local-ip>  
+<https://regex101.com/>  
+<https://docs.rs/env_logger/*/env_logger/>  
+<https://docs.rs/regex/1.1.2/regex/struct.Captures.html>  
+<https://doc.rust-lang.org/reference/tokens.html#raw-string-literals>  
+<https://github.com/clap-rs/clap>  
