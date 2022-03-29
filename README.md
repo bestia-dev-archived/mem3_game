@@ -1,17 +1,17 @@
 # mem3_game
 
 **A step toward idiomatic Rust, but not the final step.**  
-***version: 3.0  date: 2019-05-20 author: [Dev_Bestia](https://bestia.dev) repository: [GitHub](https://github.com/LucianoBestia/mem3_game)***  
+***version: 3.0  date: 2019-05-20 author: [bestia.dev](https://bestia.dev) repository: [GitHub](https://github.com/bestia-dev/mem3_game)***  
 
 Read the `Last project`:  
-<https://github.com/LucianoBestia/mem2>  
+<https://github.com/bestia-dev/mem2>  
 You can play the game here (hosted on google cloud platform):  
 <https://bestia.dev/mem3>  
 
 ## Clone
 
 ```bash
-git clone git@github.com:LucianoBestia/mem3_game.git
+git clone git@github.com:bestia-dev/mem3_game.git
 cd mem3
 ```
 
@@ -59,7 +59,7 @@ On the web use this url to read crate reviews. Example:
 
 ## Next projects
 
-<https://github.com/LucianoBestia/mem4_game>  
+<https://github.com/bestia-dev/mem4_game>  
 
 ## Changelog
 
@@ -67,7 +67,7 @@ On the web use this url to read crate reviews. Example:
 - use cargo make (build scripts) to copy needed files to webfolder. This folder can be then copied to some website and works.  
 - mem3 RenderComponents have an internal cache for values. These are copied/cloned from game_data. ANd invalidated accordingly.
 - For the research of different approach to game_data references I opened a new project with minimalistic code.  
-<https://github.com/LucianoBestia/dodrio_multi_component>  
+<https://github.com/bestia-dev/dodrio_multi_component>  
 2019-05-19
 - player can choose more than one content: "images, sounds and text"
 - fetch text.json from Rust asynchronously over WebSocket

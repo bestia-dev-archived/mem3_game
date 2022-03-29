@@ -2,10 +2,10 @@
 name = "mem3_common"
 version = "1.0.0" 
 description = "commons for mem3 wasm and server"
-authors = ["Luciano Bestia"]
+authors = ["bestia.dev"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/lucianobestia/mem3_game"
+repository = "https://github.com/bestia-dev/mem3_game"
 categories = ["web-programming::http-server"]
 keywords = ["warp", "server", "http", "websocket"]
 publish = false
