@@ -2,6 +2,7 @@
 name = "mem3"
 version = "1.0.0"
 authors = ["bestia.dev"]
+homepage = "https://bestia.dev"
 edition = "2018"
 description = "Learning Rust Wasm/WebAssembly with Virtual Dom Dodrio"
 repository = "https://github.com/bestia-dev/mem3_game"

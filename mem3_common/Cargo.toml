@@ -3,6 +3,7 @@ name = "mem3_common"
 version = "1.0.0" 
 description = "commons for mem3 wasm and server"
 authors = ["bestia.dev"]
+homepage = "https://bestia.dev"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/bestia-dev/mem3_game"
