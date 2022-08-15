@@ -3,7 +3,7 @@
 **A step toward idiomatic Rust, but not the final step.**  
 ***version: 3.0  date: 2019-05-20 author: [bestia.dev](https://bestia.dev) repository: [GitHub](https://github.com/bestia-dev/mem3_game)***  
 
-![Hits](https://bestia.dev/webpage_hit_counter/get_svg_image/349050521)
+![Hits](https://bestia.dev/webpage_hit_counter/get_svg_image/349050521.svg)
 
 Hashtags: #rustlang #game #tutorial  
 My projects on Github are more like a tutorial than a finished product: [bestia-dev tutorials](https://github.com/bestia-dev/tutorials_rust_wasm).
